@@ -5,3 +5,4 @@ authors = ["Benjamin Faller", "Sebastian Voigt"]
 edition = "2018"
 
 [dependencies]
+dotenv = "0.15.0"

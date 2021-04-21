@@ -1,3 +1,4 @@
 fn main() {
-    println!("Hello, world!");
+    dotenv::dotenv().ok();
+    println!("{:?}", std::env::var("DATABASE_URL"));
 }
