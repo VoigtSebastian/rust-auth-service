@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use service_errors::ServiceError;
 use sqlx::{FromRow, PgPool};
 
-use crate::errors;
+use crate::error_mapping;
 
 static SELECT_USER: &str =
     "SELECT * FROM users WHERE email = $1 AND password = crypt($2, password);";
@@ -29,7 +29,7 @@ impl User {
             .bind(password)
             .execute(connection)
             .await
-            .map_err(|e| errors::user_registration_error(e, email))
+            .map_err(|e| error_mapping::user_registration_error(e, email))
     }
 
     pub async fn look_up_user(
@@ -42,7 +42,7 @@ impl User {
             .bind(password)
             .fetch_one(connection)
             .await
-            .map_err(|e| errors::user_lookup_error(e, email))
+            .map_err(|e| error_mapping::user_lookup_error(e, email))
     }
 }
 
