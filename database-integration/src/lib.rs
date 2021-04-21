@@ -1,3 +1,3 @@
 mod error_mapping;
-pub mod users;
+pub mod user;
 pub mod utility;
