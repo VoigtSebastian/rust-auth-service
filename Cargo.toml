@@ -6,3 +6,10 @@ edition = "2018"
 
 [dependencies]
 dotenv = "0.15.0"
+service-errors = { path = "service-errors" }
+
+
+[workspace]
+members = [
+    "service-errors",
+]
