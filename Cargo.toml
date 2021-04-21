@@ -5,12 +5,15 @@ authors = ["Benjamin Faller", "Sebastian Voigt"]
 edition = "2018"
 
 [dependencies]
-dotenv = "0.15.0"
+authorization = { path = "authorization" }
 service-errors = { path = "service-errors" }
 
+dotenv = "0.15.0"
+actix-web = "3"
 
 [workspace]
 members = [
     "service-errors",
-    "database-integration"
+    "database-integration",
+    "authorization"
 ]

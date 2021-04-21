@@ -326,6 +326,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "authorization"
+version = "0.1.0"
+dependencies = [
+ "actix-service",
+ "actix-web",
+ "futures",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1617,6 +1626,8 @@ dependencies = [
 name = "rust-auth-service"
 version = "0.1.0"
 dependencies = [
+ "actix-web",
+ "authorization",
  "dotenv",
  "service-errors",
 ]
