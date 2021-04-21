@@ -1,0 +1,16 @@
+[package]
+name = "database-integration"
+version = "0.1.0"
+authors = ["Benjamin Faller", "Sebastian Voigt"]
+edition = "2018"
+
+[dependencies]
+chrono = "0.4.19"
+dotenv = "0.15.0"
+anyhow = "1.0"
+
+sqlx = { version = "0.4", features = [ "runtime-actix-native-tls", "postgres", "uuid", "chrono" ] }
+
+actix-rt = "1"
+
+service-errors = { path = "../service-errors" }

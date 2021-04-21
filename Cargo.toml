@@ -12,4 +12,5 @@ service-errors = { path = "service-errors" }
 [workspace]
 members = [
     "service-errors",
+    "database-integration"
 ]
