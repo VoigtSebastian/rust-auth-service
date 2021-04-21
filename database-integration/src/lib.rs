@@ -1,3 +1,3 @@
 mod errors;
 pub mod users;
-mod utility;
+pub mod utility;
