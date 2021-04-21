@@ -15,5 +15,6 @@ actix-web = "3"
 members = [
     "service-errors",
     "database-integration",
-    "authorization"
+    "authorization",
+    "access-control",
 ]
