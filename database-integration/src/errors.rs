@@ -1,17 +1,17 @@
-use service_errors::AuthServiceError;
+use service_errors::ServiceError;
 
-pub fn user_lookup_error(error: sqlx::Error, email: &String) -> AuthServiceError {
+pub fn user_lookup_error(error: sqlx::Error, email: &String) -> ServiceError {
     match error {
-        sqlx::Error::RowNotFound => AuthServiceError::UserNotFound {
+        sqlx::Error::RowNotFound => ServiceError::UserNotFound {
             email: email.clone(),
         },
-        _ => AuthServiceError::Default,
+        _ => ServiceError::Default,
     }
 }
 
-pub fn user_registration_error(error: sqlx::Error, email: &String) -> AuthServiceError {
+pub fn user_registration_error(error: sqlx::Error, email: &String) -> ServiceError {
     match error {
-        _ => AuthServiceError::UserRegistrationFailed {
+        _ => ServiceError::UserRegistrationFailed {
             email: email.clone(),
         },
     }

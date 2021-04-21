@@ -14,7 +14,7 @@ use authorization::SimpleStringMiddleware;
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
     println!("{:?}", std::env::var("DATABASE_URL"));
-    println!("{}", service_errors::AuthServiceError::Default);
+    println!("{}", service_errors::ServiceError::Default);
 
     HttpServer::new(|| {
         App::new()

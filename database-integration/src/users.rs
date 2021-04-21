@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use service_errors::AuthServiceError;
+use service_errors::ServiceError;
 use sqlx::{FromRow, PgPool};
 
 use crate::errors;
@@ -23,7 +23,7 @@ impl User {
         connection: &PgPool,
         email: &String,
         password: &String,
-    ) -> Result<sqlx::postgres::PgDone, AuthServiceError> {
+    ) -> Result<sqlx::postgres::PgDone, ServiceError> {
         sqlx::query(INSERT_USER)
             .bind(email)
             .bind(password)
@@ -36,7 +36,7 @@ impl User {
         connection: &PgPool,
         email: &String,
         password: &String,
-    ) -> Result<User, AuthServiceError> {
+    ) -> Result<User, ServiceError> {
         sqlx::query_as::<_, User>(SELECT_USER)
             .bind(email)
             .bind(password)
