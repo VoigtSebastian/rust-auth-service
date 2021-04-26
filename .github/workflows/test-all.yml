@@ -34,7 +34,9 @@ jobs:
           toolchain: stable
           override: true
       - name: Postgres Setup
-        run: psql -U postgres -h postgres auth_service_db -a -f sql/up.sql
+        run: |
+          export PGPASSWORD="password"
+          psql -U postgres -h postgres auth_service_db -a -f sql/up.sql
       - name: Run cargo test
         env:
           DATABASE_URL: postgres://postgres:password@postgres:5432/auth_service_db
