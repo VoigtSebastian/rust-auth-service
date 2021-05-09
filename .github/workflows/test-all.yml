@@ -1,0 +1,74 @@
+on: [pull_request]
+
+name: cargo test
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    container: ubuntu:latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: auth_service_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Install necessary packages
+        run: |
+          export DEBIAN_FRONTEND="noninteractive"
+          export TZ="Europe/London"
+          apt-get update && apt-get install -y wget curl build-essential libssl1.1 libssl-dev postgresql-client openssl pkg-config
+      - name: Checkout sources
+        uses: actions/checkout@v2
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Postgres Setup
+        run: |
+          export PGPASSWORD="password"
+          psql -U postgres -h postgres auth_service_db -a -f sql/up.sql
+      - name: Run cargo test
+        env:
+          DATABASE_URL: postgres://postgres:password@postgres:5432/auth_service_db
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace -- --ignored
+
+  # lints:
+  #   name: Lints
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Install necessary packages
+  #       run: apt update && apt install -y build-essential
+  #     - name: Checkout sources
+  #       uses: actions/checkout@v2
+
+  #     - name: Install stable toolchain
+  #       uses: actions-rs/toolchain@v1
+  #       with:
+  #         profile: minimal
+  #         toolchain: stable
+  #         override: true
+  #         components: rustfmt, clippy
+
+  #     - name: Run cargo fmt
+  #       uses: actions-rs/cargo@v1
+  #       with:
+  #         command: fmt
+  #         args: --all -- --check
+  #     - name: Run cargo clippy
+  #       uses: actions-rs/cargo@v1
+  #       with:
+  #         command: clippy
+  #         args: -- -D warnings
