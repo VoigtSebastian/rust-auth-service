@@ -11,8 +11,8 @@ use actix_web::{
     Error,
 };
 use actix_web::{FromRequest, HttpMessage, HttpRequest};
-use futures::future::{ok, Ready};
-use futures::Future;
+use futures_core::Future;
+use futures_util::future::{ok, Ready};
 
 pub struct SimpleStringMiddleware {
     pub permission: String,

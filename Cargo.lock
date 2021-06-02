@@ -339,7 +339,8 @@ dependencies = [
  "access-control",
  "actix-service",
  "actix-web",
- "futures",
+ "futures-core",
+ "futures-util",
 ]
 
 [[package]]

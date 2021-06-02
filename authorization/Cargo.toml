@@ -5,7 +5,8 @@ authors = ["Benjamin Faller", "Sebastian Voigt"]
 edition = "2018"
 
 [dependencies]
-futures = "0.3.14"
+futures-core = { version = "0.3.7", default-features = false }
+futures-util = { version = "0.3.7", default-features = false }
 actix-service = "1"
 actix-web = "3"
 
