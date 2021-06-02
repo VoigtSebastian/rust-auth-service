@@ -3,6 +3,7 @@ use actix_web::{
     App, HttpServer, Result,
 };
 use authorization::SimpleStringMiddleware;
+use authorization::UserDetails;
 
 /// This Service starts an HttpServer using actix-web with four routes.
 /// - A route that serves mocked public information under /information/public
@@ -51,6 +52,6 @@ async fn retrieve_user_information() -> Result<String> {
 }
 
 /// Used to access mocked admin-specific information
-async fn retrieve_admin_information() -> Result<String> {
-    Ok("admin information".to_string())
+async fn retrieve_admin_information(user: UserDetails) -> Result<String> {
+    Ok(format!("{:?}", user.0))
 }

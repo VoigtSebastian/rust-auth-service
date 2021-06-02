@@ -3,12 +3,14 @@ use std::task::{Context, Poll};
 
 use access_control::{AccessControl, PostgreSqlBackend, User};
 use actix_service::{Service, Transform};
+use actix_web::dev::{Payload, PayloadStream};
 use actix_web::{
     dev::ServiceRequest,
     dev::ServiceResponse,
     error::{ErrorBadRequest, ErrorForbidden},
     Error,
 };
+use actix_web::{FromRequest, HttpMessage, HttpRequest};
 use futures::future::{ok, Ready};
 use futures::Future;
 
@@ -70,17 +72,19 @@ where
             Err(err) => return Box::pin(async move { Err(err) }),
         };
 
-        let check_access = || -> Result<User, Error> {
-            Ok(AccessControl::new(self.backend.clone())
+        let check_access = || -> Result<(), Error> {
+            let user = AccessControl::new(self.backend.clone())
                 .authenticate(authorization)
                 .map_err(|_| ErrorBadRequest("Invalid credentials"))?
                 .authorize(&self.permission)
                 .map_err(|_| ErrorForbidden("Permission Denied"))?
-                .get_user())
+                .get_user();
+            req.extensions_mut().insert(user.clone());
+            Ok(())
         };
 
         match check_access() {
-            Ok(user) => {
+            Ok(_) => {
                 let fut = self.service.call(req);
                 Box::pin(async move {
                     let res = fut.await?;
@@ -89,5 +93,24 @@ where
             }
             Err(e) => Box::pin(async move { Err(e) }),
         }
+    }
+}
+
+pub struct UserDetails(pub User);
+
+impl FromRequest for UserDetails {
+    type Error = Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self, Error>>>>;
+    type Config = ();
+
+    fn from_request(req: &HttpRequest, _payload: &mut Payload<PayloadStream>) -> Self::Future {
+        let req = req.clone();
+
+        Box::pin(async move {
+            req.extensions()
+                .get::<User>()
+                .map(|u| UserDetails(u.clone()))
+                .ok_or_else(|| ErrorForbidden("Permission Denied"))
+        })
     }
 }
