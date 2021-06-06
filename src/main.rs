@@ -4,6 +4,7 @@ use actix_web::{
 };
 use authorization::SimpleStringMiddleware;
 use authorization::UserDetails;
+use simple_logger::SimpleLogger;
 
 /// This Service starts an HttpServer using actix-web with four routes.
 /// - A route that serves mocked public information under /information/public
@@ -13,9 +14,8 @@ use authorization::UserDetails;
 /// The Authorization header must be set to either User or Admin to access 'sensitive data'
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    SimpleLogger::new().init().unwrap();
     dotenv::dotenv().ok();
-    println!("{:?}", std::env::var("DATABASE_URL"));
-    println!("{}", service_errors::ServiceError::Default);
 
     HttpServer::new(|| {
         App::new()
