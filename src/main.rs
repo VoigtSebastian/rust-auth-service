@@ -1,10 +1,7 @@
-use actix_web::{
-    web,
-    web::{get, resource},
-    App, HttpServer, Result,
-};
-use authorization::SimpleStringMiddleware;
-use authorization::UserDetails;
+mod configuration;
+mod routes;
+
+use actix_web::{App, HttpServer};
 
 /// This Service starts an HttpServer using actix-web with four routes.
 /// - A route that serves mocked public information under /information/public
@@ -20,50 +17,11 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
             .wrap(actix_web::middleware::Logger::default())
-            .configure(public_config)
-            .configure(user_config)
-            .configure(admin_config)
+            .configure(configuration::public_config)
+            .configure(configuration::user_config)
+            .configure(configuration::admin_config)
     })
     .bind("127.0.0.1:8080")?
     .run()
     .await
-}
-
-fn public_config(cfg: &mut web::ServiceConfig) {
-    cfg.service(resource("/information/public").route(get().to(retrieve_public_information)));
-}
-
-fn user_config(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-        resource("/information/user")
-            .wrap(SimpleStringMiddleware {
-                permission: "User".to_string(),
-            })
-            .route(get().to(retrieve_user_information)),
-    );
-}
-
-fn admin_config(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-        resource("/information/admin")
-            .wrap(SimpleStringMiddleware {
-                permission: "Admin".to_string(),
-            })
-            .route(get().to(retrieve_admin_information)),
-    );
-}
-
-/// Used to access public information
-async fn retrieve_public_information() -> Result<String> {
-    Ok("public information".to_string())
-}
-
-/// Used to access mocked user-specific information
-async fn retrieve_user_information() -> Result<String> {
-    Ok("user information".to_string())
-}
-
-/// Used to access mocked admin-specific information
-async fn retrieve_admin_information(user: UserDetails) -> Result<String> {
-    Ok(format!("{:?}", user.0))
 }
