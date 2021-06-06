@@ -10,7 +10,7 @@ service-errors = { path = "service-errors" }
 
 dotenv = "0.15.0"
 actix-web = "3"
-simple_logger = "1.11"
+env_logger = "0.8"
 
 [workspace]
 members = [
