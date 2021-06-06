@@ -1,4 +1,5 @@
 use actix_web::{
+    web,
     web::{get, resource},
     App, HttpServer, Result,
 };
@@ -19,25 +20,37 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
             .wrap(actix_web::middleware::Logger::default())
-            .service(
-                resource("/information/admin")
-                    .wrap(SimpleStringMiddleware {
-                        permission: "Admin".to_string(),
-                    })
-                    .route(get().to(retrieve_admin_information)),
-            )
-            .service(resource("/information/public").route(get().to(retrieve_public_information)))
-            .service(
-                resource("/information/user")
-                    .wrap(SimpleStringMiddleware {
-                        permission: "User".to_string(),
-                    })
-                    .route(get().to(retrieve_user_information)),
-            )
+            .configure(public_config)
+            .configure(user_config)
+            .configure(admin_config)
     })
     .bind("127.0.0.1:8080")?
     .run()
     .await
+}
+
+fn public_config(cfg: &mut web::ServiceConfig) {
+    cfg.service(resource("/information/public").route(get().to(retrieve_public_information)));
+}
+
+fn user_config(cfg: &mut web::ServiceConfig) {
+    cfg.service(
+        resource("/information/user")
+            .wrap(SimpleStringMiddleware {
+                permission: "User".to_string(),
+            })
+            .route(get().to(retrieve_user_information)),
+    );
+}
+
+fn admin_config(cfg: &mut web::ServiceConfig) {
+    cfg.service(
+        resource("/information/admin")
+            .wrap(SimpleStringMiddleware {
+                permission: "Admin".to_string(),
+            })
+            .route(get().to(retrieve_admin_information)),
+    );
 }
 
 /// Used to access public information
