@@ -1,7 +1,8 @@
+use actix_web::{App, HttpServer};
+use database_integration::utility::create_db_pool;
+
 mod configuration;
 mod routes;
-
-use actix_web::{App, HttpServer};
 
 /// This Service starts an HttpServer using actix-web with four routes.
 /// - A route that serves mocked public information under /information/public
@@ -14,12 +15,18 @@ async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
     env_logger::init();
 
-    HttpServer::new(|| {
+    let pool = create_db_pool()
+        .await
+        .expect("could not create database pool");
+
+    HttpServer::new(move || {
         App::new()
+            // Store database pool in the application data to have it available in requests
+            .data(pool.clone())
             .wrap(actix_web::middleware::Logger::default())
-            .configure(configuration::public_config)
-            .configure(configuration::user_config)
-            .configure(configuration::admin_config)
+            .configure(|c| configuration::public_config(c))
+            .configure(|c| configuration::user_config(c, &pool))
+            .configure(|c| configuration::admin_config(c, &pool))
     })
     .bind("127.0.0.1:8080")?
     .run()

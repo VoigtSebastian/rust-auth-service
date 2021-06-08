@@ -1,3 +1,6 @@
+use std::future::Future;
+use std::pin::Pin;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Invalid credentials")]
@@ -6,25 +9,14 @@ pub enum Error {
     Authorization,
 }
 
-pub trait Backend<U> {
-    fn get_user(&self, credentials: &str) -> Option<U>;
+pub trait Backend<U>: Clone {
+    fn get_user(&self, email: &str, password: &str) -> Pin<Box<dyn Future<Output = Option<U>>>>;
 }
 
-#[derive(Debug, Clone)]
-pub struct PostgreSqlBackend;
 #[derive(Debug, Clone)]
 pub struct User {
-    name: String,
-    permissions: String,
-}
-
-impl Backend<User> for PostgreSqlBackend {
-    fn get_user(&self, credentials: &str) -> Option<User> {
-        Some(User {
-            name: "admin".to_string(),
-            permissions: credentials.to_string(),
-        })
-    }
+    pub name: String,
+    pub permissions: String,
 }
 
 #[derive(Debug, Clone)]
@@ -52,8 +44,16 @@ impl<B> AccessControl<B, Start>
 where
     B: Backend<User>,
 {
-    pub fn authenticate(self, creds: &str) -> Result<AccessControl<B, Authenticated>, Error> {
-        let user = self.backend.get_user(creds).ok_or(Error::Authentication)?;
+    pub async fn authenticate(
+        self,
+        email: &str,
+        password: &str,
+    ) -> Result<AccessControl<B, Authenticated>, Error> {
+        let user = self
+            .backend
+            .get_user(email, password)
+            .await
+            .ok_or(Error::Authentication)?;
         Ok(AccessControl {
             backend: self.backend,
             state: Authenticated { user },

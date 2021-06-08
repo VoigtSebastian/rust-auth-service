@@ -350,8 +350,11 @@ dependencies = [
  "access-control",
  "actix-service",
  "actix-web",
+ "database-integration",
  "futures-core",
  "futures-util",
+ "log",
+ "sqlx",
 ]
 
 [[package]]
@@ -649,6 +652,7 @@ dependencies = [
 name = "database-integration"
 version = "0.1.0"
 dependencies = [
+ "access-control",
  "actix-rt",
  "anyhow",
  "chrono",
@@ -1667,9 +1671,11 @@ version = "0.1.0"
 dependencies = [
  "actix-web",
  "authorization",
+ "database-integration",
  "dotenv",
  "env_logger",
  "service-errors",
+ "sqlx",
 ]
 
 [[package]]

@@ -10,19 +10,19 @@ static SELECT_USER: &str =
 static INSERT_USER: &str =
     "INSERT INTO users (email, password, registration_date) VALUES ($1, crypt($2, gen_salt('bf')), NOW());";
 
-#[derive(Debug, FromRow)]
+#[derive(Debug, Clone, FromRow)]
 pub struct User {
-    user_id: i32,
-    email: String,
-    password: String,
-    registration_date: DateTime<Utc>,
+    pub user_id: i32,
+    pub email: String,
+    pub password: String,
+    pub registration_date: DateTime<Utc>,
 }
 
 impl User {
     pub async fn register_user(
         connection: &PgPool,
-        email: &String,
-        password: &String,
+        email: &str,
+        password: &str,
     ) -> Result<sqlx::postgres::PgDone, ServiceError> {
         sqlx::query(INSERT_USER)
             .bind(email)
@@ -34,8 +34,8 @@ impl User {
 
     pub async fn look_up_user(
         connection: &PgPool,
-        email: &String,
-        password: &String,
+        email: &str,
+        password: &str,
     ) -> Result<User, ServiceError> {
         sqlx::query_as::<_, User>(SELECT_USER)
             .bind(email)

@@ -6,11 +6,13 @@ edition = "2018"
 
 [dependencies]
 authorization = { path = "authorization" }
+database-integration = { path = "database-integration" }
 service-errors = { path = "service-errors" }
 
-dotenv = "0.15.0"
 actix-web = "3"
+dotenv = "0.15.0"
 env_logger = "0.8"
+sqlx = { version = "0.4", features = [ "runtime-actix-native-tls", "postgres", "uuid", "chrono" ] }
 
 [workspace]
 members = [

@@ -5,9 +5,12 @@ authors = ["Benjamin Faller", "Sebastian Voigt"]
 edition = "2018"
 
 [dependencies]
-futures-core = { version = "0.3.7", default-features = false }
-futures-util = { version = "0.3.7", default-features = false }
+access-control = { path = "../access-control" }
+database-integration = { path = "../database-integration" }
+
 actix-service = "1"
 actix-web = "3"
-
-access-control = { path = "../access-control" }
+futures-core = { version = "0.3.7", default-features = false }
+futures-util = { version = "0.3.7", default-features = false }
+log = "0.4"
+sqlx = { version = "0.4", features = [ "runtime-actix-native-tls", "postgres", "uuid", "chrono" ] }
