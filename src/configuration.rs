@@ -1,8 +1,8 @@
 use std::fmt;
 
 use crate::routes;
-use authorization::SimpleStringMiddleware;
 use database_integration::PostgreSqlBackend;
+use middleware::SimpleStringMiddleware;
 
 use actix_web::{
     web,

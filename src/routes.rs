@@ -1,6 +1,6 @@
 use actix_web::Result;
-use authorization::UserDetails;
 use database_integration::user::User;
+use middleware::UserDetails;
 
 /// Used to access public information
 pub async fn retrieve_public_information() -> Result<String> {

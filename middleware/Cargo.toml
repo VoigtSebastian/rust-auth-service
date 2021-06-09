@@ -1,5 +1,5 @@
 [package]
-name = "authorization"
+name = "middleware"
 version = "0.1.0"
 authors = ["Benjamin Faller", "Sebastian Voigt"]
 edition = "2018"

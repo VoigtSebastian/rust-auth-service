@@ -5,7 +5,7 @@ authors = ["Benjamin Faller", "Sebastian Voigt"]
 edition = "2018"
 
 [dependencies]
-authorization = { path = "authorization" }
+middleware = { path = "middleware" }
 database-integration = { path = "database-integration" }
 service-errors = { path = "service-errors" }
 
@@ -16,8 +16,8 @@ sqlx = { version = "0.4", features = [ "runtime-actix-native-tls", "postgres", "
 
 [workspace]
 members = [
-    "service-errors",
-    "database-integration",
-    "authorization",
     "access-control",
+    "database-integration",
+    "middleware",
+    "service-errors",
 ]
