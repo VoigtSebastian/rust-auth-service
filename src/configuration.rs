@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::routes;
 use authorization::SimpleStringMiddleware;
 use database_integration::PostgreSqlBackend;
@@ -14,12 +16,27 @@ pub fn public_config(cfg: &mut web::ServiceConfig) {
     );
 }
 
+#[derive(Debug)]
+pub enum Capabilities {
+    UserRead,
+    AdminRead,
+}
+
+impl fmt::Display for Capabilities {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
 pub fn user_config(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
     cfg.service(
         resource("/information/user")
             .wrap(SimpleStringMiddleware::new(
                 PostgreSqlBackend { db: pool.clone() },
-                ["UserRead"].iter().map(|s| s.to_string()).collect(),
+                [Capabilities::UserRead]
+                    .iter()
+                    .map(|c| c.to_string())
+                    .collect(),
             ))
             .route(get().to(routes::retrieve_user_information)),
     );
@@ -30,7 +47,10 @@ pub fn admin_config(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
         resource("/information/admin")
             .wrap(SimpleStringMiddleware::new(
                 PostgreSqlBackend { db: pool.clone() },
-                ["AdminRead"].iter().map(|s| s.to_string()).collect(),
+                [Capabilities::AdminRead]
+                    .iter()
+                    .map(|c| c.to_string())
+                    .collect(),
             ))
             .route(get().to(routes::retrieve_admin_information)),
     );
