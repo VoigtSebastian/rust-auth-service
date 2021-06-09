@@ -17,10 +17,10 @@ pub fn public_config(cfg: &mut web::ServiceConfig) {
 pub fn user_config(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
     cfg.service(
         resource("/information/user")
-            .wrap(SimpleStringMiddleware {
-                backend: PostgreSqlBackend { db: pool.clone() },
-                permission: "User".to_string(),
-            })
+            .wrap(SimpleStringMiddleware::new(
+                PostgreSqlBackend { db: pool.clone() },
+                ["UserRead"].iter().map(|s| s.to_string()).collect(),
+            ))
             .route(get().to(routes::retrieve_user_information)),
     );
 }
@@ -28,10 +28,10 @@ pub fn user_config(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
 pub fn admin_config(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
     cfg.service(
         resource("/information/admin")
-            .wrap(SimpleStringMiddleware {
-                backend: PostgreSqlBackend { db: pool.clone() },
-                permission: "Admin".to_string(),
-            })
+            .wrap(SimpleStringMiddleware::new(
+                PostgreSqlBackend { db: pool.clone() },
+                ["AdminRead"].iter().map(|s| s.to_string()).collect(),
+            ))
             .route(get().to(routes::retrieve_admin_information)),
     );
 }

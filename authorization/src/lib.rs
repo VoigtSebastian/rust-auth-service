@@ -1,4 +1,6 @@
 use std::cell::RefCell;
+use std::collections::HashSet;
+use std::marker::PhantomData;
 use std::pin::Pin;
 use std::rc::Rc;
 use std::task::{Context, Poll};
@@ -20,52 +22,76 @@ use actix_web::{FromRequest, HttpMessage, HttpRequest};
 use futures_core::Future;
 use futures_util::future::{ok, Ready};
 
-pub struct SimpleStringMiddleware<T: Backend<User>> {
+pub struct SimpleStringMiddleware<T, U>
+where
+    T: Backend<U>,
+    U: User,
+{
     pub backend: T,
-    pub permission: String,
+    pub required_capabilities: HashSet<String>,
+    phantom: PhantomData<U>,
 }
 
-impl<S, B, T> Transform<S> for SimpleStringMiddleware<T>
+impl<T, U> SimpleStringMiddleware<T, U>
+where
+    T: Backend<U>,
+    U: User,
+{
+    pub fn new(backend: T, required_capabilities: HashSet<String>) -> Self {
+        Self {
+            backend,
+            required_capabilities,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<S, B, T, U> Transform<S> for SimpleStringMiddleware<T, U>
 where
     S: Service<Request = ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
     B: 'static,
-    T: Backend<User> + 'static,
+    T: Backend<U> + 'static,
+    U: User + 'static,
 {
     type Request = ServiceRequest;
     type Response = ServiceResponse<B>;
     type Error = Error;
     type InitError = ();
-    type Transform = AuthorizationMiddleware<S, T>;
+    type Transform = AuthorizationMiddleware<S, T, U>;
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
         ok(AuthorizationMiddleware {
             backend: self.backend.clone(),
-            permission: self.permission.clone(),
+            required_capabilities: self.required_capabilities.clone(),
             service: Rc::new(RefCell::new(service)),
+            phantom: self.phantom,
         })
     }
 }
 
 /// Actix Web middleware to facilitate access control for Actix services.
-pub struct AuthorizationMiddleware<S, T>
+pub struct AuthorizationMiddleware<S, T, U>
 where
-    T: Backend<User>,
+    T: Backend<U>,
+    U: User,
 {
     backend: T,
-    permission: String,
+    required_capabilities: HashSet<String>,
     /// TODO: Check whether the `Rc<RefCell<S>>` structure is properly implemented and safe.
     /// Especially race conditions have not been checked yet.
     service: Rc<RefCell<S>>,
+    phantom: PhantomData<U>,
 }
 
-impl<S, B, T> Service for AuthorizationMiddleware<S, T>
+impl<S, B, T, U> Service for AuthorizationMiddleware<S, T, U>
 where
     S: Service<Request = ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
     B: 'static,
-    T: Backend<User> + 'static,
+    T: Backend<U> + 'static,
+    U: User + 'static,
 {
     type Request = ServiceRequest;
     type Response = ServiceResponse<B>;
@@ -78,7 +104,7 @@ where
 
     fn call(&mut self, req: ServiceRequest) -> Self::Future {
         let mut srv = self.service.clone();
-        let required_perms = self.permission.clone();
+        let required_caps = self.required_capabilities.clone();
         let backend = self.backend.clone();
 
         Box::pin(async move {
@@ -109,7 +135,7 @@ where
                         .authenticate(&email, &password)
                         .await
                         .map_err(|_| ErrorBadRequest("Invalid credentials"))?
-                        .authorize(&required_perms)
+                        .authorize(&required_caps)
                         .map_err(|_| ErrorForbidden("Permission Denied"))?
                         .get_user();
                     req.extensions_mut().insert(user);
@@ -128,9 +154,12 @@ where
     }
 }
 
-pub struct UserDetails(pub User);
+pub struct UserDetails<U>(pub U);
 
-impl FromRequest for UserDetails {
+impl<U> FromRequest for UserDetails<U>
+where
+    U: User + Clone + 'static,
+{
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self, Error>>>>;
     type Config = ();
@@ -140,7 +169,7 @@ impl FromRequest for UserDetails {
 
         Box::pin(async move {
             req.extensions()
-                .get::<User>()
+                .get::<U>()
                 .map(|u| UserDetails(u.clone()))
                 .ok_or_else(|| ErrorInternalServerError("User not found"))
         })

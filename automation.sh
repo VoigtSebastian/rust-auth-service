@@ -51,6 +51,10 @@ function database_add_session {
     database_command "INSERT INTO sessions (session_id, user_id, expiration_date) VALUES (gen_random_uuid(), $1, NOW());"
 }
 
+function database_add_capability {
+    database_command "INSERT INTO capabilities (user_id, label) VALUES ($1, '$2');"
+}
+
 function list_exipired_sessions {
     database_command "select * from sessions WHERE expiration_date < NOW();"
 }
@@ -83,6 +87,10 @@ elif [ "$1" == "insert" ] && [ "$2" == "session" ] && [ $# == 3 ]; then
     echo "Inserting session for user with user_id $3"
     database_add_session "$3"
 
+elif [ "$1" == "insert" ] && [ "$2" == "cap" ] && [ $# == 4 ]; then
+    echo "Inserting capability for user with user_id $3"
+    database_add_capability "$3" "$4"
+
 elif [ "$1" == "list" ] && [ "$2" == "expired" ]; then
     echo "Listing expired sessions"
     list_exipired_sessions
@@ -98,7 +106,7 @@ elif [ "$1" == "psql-uri" ]; then
     echo "postgres://$POSTGRES_USER:$PGPASSWORD@$POSTGRES_HOSTNAME:$POSTGRES_PORT/$POSTGRES_DB"
 
 elif [ "$1" == "test" ]; then
-    cargo test -- --ignored
+    cargo test --workspace -- --ignored
 
 else
     echo "Unkown argument combination"

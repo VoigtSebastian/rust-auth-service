@@ -1,21 +1,38 @@
+use std::collections::HashSet;
+
 use chrono::{DateTime, Utc};
 use service_errors::ServiceError;
 use sqlx::{FromRow, PgPool};
 
 use crate::error_mapping;
 
-static SELECT_USER: &str =
+const SELECT_USER: &str =
     "SELECT * FROM users WHERE email = $1 AND password = crypt($2, password);";
 
-static INSERT_USER: &str =
+const INSERT_USER: &str =
     "INSERT INTO users (email, password, registration_date) VALUES ($1, crypt($2, gen_salt('bf')), NOW());";
 
-#[derive(Debug, Clone, FromRow)]
+const SELECT_CAPABILITIES: &str = "SELECT * FROM capabilities WHERE user_id = $1;";
+
+#[derive(Debug, Clone)]
 pub struct User {
-    pub user_id: i32,
     pub email: String,
-    pub password: String,
     pub registration_date: DateTime<Utc>,
+    pub capabilities: HashSet<String>,
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct DbUser {
+    user_id: i32,
+    email: String,
+    password: String,
+    registration_date: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, FromRow)]
+struct DbCapability {
+    user_id: i32,
+    label: String,
 }
 
 impl User {
@@ -37,12 +54,26 @@ impl User {
         email: &str,
         password: &str,
     ) -> Result<User, ServiceError> {
-        sqlx::query_as::<_, User>(SELECT_USER)
+        let dbuser = sqlx::query_as::<_, DbUser>(SELECT_USER)
             .bind(email)
             .bind(password)
             .fetch_one(connection)
             .await
-            .map_err(|e| error_mapping::user_lookup_error(e, email))
+            .map_err(|e| error_mapping::user_lookup_error(e, email))?;
+        let user_caps: HashSet<String> = sqlx::query_as::<_, DbCapability>(SELECT_CAPABILITIES)
+            .bind(dbuser.user_id)
+            .fetch_all(connection)
+            .await
+            .map_err(|e| error_mapping::user_lookup_error(e, email))?
+            .into_iter()
+            .map(|c: DbCapability| c.label)
+            .collect();
+
+        Ok(User {
+            email: dbuser.email,
+            registration_date: dbuser.registration_date,
+            capabilities: user_caps,
+        })
     }
 }
 

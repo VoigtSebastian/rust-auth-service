@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -9,93 +10,110 @@ pub enum Error {
     Authorization,
 }
 
-pub trait Backend<U>: Clone {
+pub trait Backend<U>: Clone
+where
+    U: User,
+{
     fn get_user(&self, email: &str, password: &str) -> Pin<Box<dyn Future<Output = Option<U>>>>;
 }
 
-#[derive(Debug, Clone)]
-pub struct User {
-    pub name: String,
-    pub permissions: String,
+pub trait User {
+    fn name(&self) -> &str;
+    fn capabilities(&self) -> &HashSet<String>;
 }
 
 #[derive(Debug, Clone)]
-pub struct AccessControl<B, S: AccessControlState>
+pub struct AccessControl<S, B, U>
 where
-    B: Backend<User>,
+    S: AccessControlState,
+    B: Backend<U>,
+    U: User,
 {
-    backend: B,
     state: S,
+    backend: B,
+    user: Option<U>,
 }
 
-impl<B> AccessControl<B, Start>
+impl<B, U> AccessControl<Start, B, U>
 where
-    B: Backend<User>,
+    B: Backend<U>,
+    U: User,
 {
     pub fn new(backend: B) -> Self {
         Self {
-            backend,
             state: Start,
+            backend,
+            user: None,
         }
     }
 }
 
-impl<B> AccessControl<B, Start>
+impl<B, U> AccessControl<Start, B, U>
 where
-    B: Backend<User>,
+    B: Backend<U>,
+    U: User,
 {
     pub async fn authenticate(
         self,
         email: &str,
         password: &str,
-    ) -> Result<AccessControl<B, Authenticated>, Error> {
+    ) -> Result<AccessControl<Authenticated, B, U>, Error> {
         let user = self
             .backend
             .get_user(email, password)
             .await
             .ok_or(Error::Authentication)?;
         Ok(AccessControl {
+            state: Authenticated,
             backend: self.backend,
-            state: Authenticated { user },
+            user: Some(user),
         })
     }
 }
 
-impl<B> AccessControl<B, Authenticated>
+impl<B, U> AccessControl<Authenticated, B, U>
 where
-    B: Backend<User>,
+    B: Backend<U>,
+    U: User,
 {
-    pub fn authorize(self, required_perms: &str) -> Result<AccessControl<B, Authorized>, Error> {
-        if self.state.user.permissions != required_perms {
+    pub fn authorize(
+        self,
+        required_capabilities: &HashSet<String>,
+    ) -> Result<AccessControl<Authorized, B, U>, Error> {
+        if !self
+            .user
+            .as_ref()
+            .expect("user is always available in authenticated state")
+            .capabilities()
+            .is_superset(required_capabilities)
+        {
             return Err(Error::Authorization);
         }
+
         Ok(AccessControl {
+            state: Authorized,
             backend: self.backend,
-            state: Authorized {
-                user: self.state.user,
-            },
+            user: self.user,
         })
     }
 }
 
-impl<B> AccessControl<B, Authorized>
+impl<B, U> AccessControl<Authorized, B, U>
 where
-    B: Backend<User>,
+    B: Backend<U>,
+    U: User,
 {
-    pub fn get_user(self) -> User {
-        self.state.user
+    pub fn get_user(self) -> U {
+        self.user
+            .expect("user is always available in authorized state")
     }
 }
 
 // TODO: Seal https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
 pub trait AccessControlState {}
 pub struct Start;
-pub struct Authenticated {
-    user: User,
-}
-pub struct Authorized {
-    user: User,
-}
+pub struct Authenticated;
+pub struct Authorized;
 
 impl AccessControlState for Start {}
 impl AccessControlState for Authenticated {}
