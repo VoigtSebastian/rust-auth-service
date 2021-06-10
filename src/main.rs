@@ -24,7 +24,7 @@ async fn main() -> std::io::Result<()> {
             // Store database pool in the application data to have it available in requests
             .data(pool.clone())
             .wrap(actix_web::middleware::Logger::default())
-            .configure(|c| configuration::public_config(c))
+            .configure(configuration::website)
             .configure(|c| configuration::user_config(c, &pool))
             .configure(|c| configuration::admin_config(c, &pool))
     })

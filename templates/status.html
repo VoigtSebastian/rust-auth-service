@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Status{% endblock %}
+
+{% block content %}
+<section id="status" class="py-5">
+  {% match user %}
+  {% when Some with (user) %}
+  <h1>Account Information</h1>
+  <dl class="row">
+    <dt class="col-sm-2">Username</dt>
+    <dd class="col-sm-10">{{ user.email }}</dd>
+    <dt class="col-sm-2">Registration Date</dt>
+    <dd class="col-sm-10">{{ user.registration_date }}</dd>
+  </dl>
+  <h4 class="mb-3">Capabilities</h4>
+  <ul class="list-group">
+    {% for cap in user.capabilities %}
+    <li class="list-group-item">{{ cap }}</li>
+    {% endfor %}
+  </ul>
+  {% when None %}
+  Not logged in
+  {% endmatch %}
+</section>
+{% endblock %}

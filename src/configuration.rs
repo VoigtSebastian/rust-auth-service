@@ -10,12 +10,6 @@ use actix_web::{
 };
 use sqlx::{Pool, Postgres};
 
-pub fn public_config(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-        resource("/information/public").route(get().to(routes::retrieve_public_information)),
-    );
-}
-
 #[derive(Debug)]
 pub enum Capabilities {
     UserRead,
@@ -26,6 +20,12 @@ impl fmt::Display for Capabilities {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self, f)
     }
+}
+
+pub fn website(cfg: &mut web::ServiceConfig) {
+    cfg.service(resource("/").route(web::get().to(routes::status_page)));
+    cfg.service(resource("/login").route(web::get().to(routes::login_page)));
+    cfg.service(resource("/register").route(web::get().to(routes::register_page)));
 }
 
 pub fn user_config(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
