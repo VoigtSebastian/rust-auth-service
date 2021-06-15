@@ -2,14 +2,31 @@ use std::collections::HashSet;
 use std::future::Future;
 use std::pin::Pin;
 
+/// Access-Control errors for authentication and authorization
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
+    /// The error to return when authentication failed
+    ///
+    /// Authentication is the process of verifying a persons identity.
+    /// A error when verifying a users permission is an authorization error.
     #[error("Invalid credentials")]
     Authentication,
+    /// The error to return when authorization failed
+    ///
+    /// Authorization is the process of verifying a persons permissions to manipulate, create or read data.
+    /// A error when verifying a users identity is an authentication error.
     #[error("Permission denied")]
     Authorization,
 }
 
+/// The Backend trait defines the operations of the database layer.
+///
+/// To implement a backend you will need to provide a valid [`User`].
+/// # Backend operations
+/// Currently there is ony the [`Backend::get_user`] method that needs to be implemented to build a valid backend.
+/// This function retrieves a user from the database by providing a email and password.
+/// # Implementations
+/// Currently there is the PostgreSqlBackend which implements an example workflow for the backend.
 pub trait Backend<U>: Clone
 where
     U: User,
@@ -17,11 +34,31 @@ where
     fn get_user(&self, email: &str, password: &str) -> Pin<Box<dyn Future<Output = Option<U>>>>;
 }
 
+/// The User trait defines the operations of a User that are necessary to be handled by the middleware.
+/// # User operations
+/// The user trait forces two methods that need to be implemented.
+/// 1. The [`User::name`] method that returns a users name as `&str`.
+/// 2. The [`User::capabilities`] method that returns a users capabilities inside a `&HashSet<String>`
+///
+/// Capabilities are just a collection of Strings that describe the operations a user is allowed to do.
+/// For example, a normal Administrator could have the capabilities of `hash_set!{ "Admin", "AdminRead", "AdminWrite"};`.
 pub trait User {
     fn name(&self) -> &str;
     fn capabilities(&self) -> &HashSet<String>;
 }
 
+/// AccessControl defines the behavior of a `Backend<impl User>` and ensures its safety at compile time.
+/// This safety is guaranteed by the implementation of the [typestate pattern](http://cliffle.com/blog/rust-typestate/).
+///
+/// In the case of the AccessControl struct we use the states [`Start`], [`Authenticated`] and [`Authorized`] to ensure that operations are executed in the correct order.
+/// # Operations
+/// The AccessControl defines multiple operations stretched over multiple states.
+/// 1. **Start** provides the [`AccessControl::new`] and [`AccessControl::authenticate`] method
+/// 2. **Authenticated** provides the [`AccessControl::authorize`] method
+/// 3. **Authorized** provides the [`AccessControl::get_user`] method
+///
+/// # Definition
+/// To use the AccessControl an implementation of a Backend and therefore User is necessary.
 #[derive(Debug, Clone)]
 pub struct AccessControl<S, B, U>
 where
@@ -39,6 +76,7 @@ where
     B: Backend<U>,
     U: User,
 {
+    /// Create a new AccessControl in the state `Start` by providing a `Backend<impl User>`
     pub fn new(backend: B) -> Self {
         Self {
             state: Start,
@@ -53,6 +91,12 @@ where
     B: Backend<U>,
     U: User,
 {
+    // TODO: Make email username -> emails are hard
+    /// Authenticate a user by providing a username and password.
+    ///
+    /// The authentication process is implemented by the provided `Backend<impl User>` and its `get_user` method.
+    ///
+    /// This method may return [`Error::Authentication`] on error, otherwise it returns a AccessControl in the state `Authenticated`.
     pub async fn authenticate(
         self,
         email: &str,
@@ -76,6 +120,10 @@ where
     B: Backend<U>,
     U: User,
 {
+    /// Authorize a user by passing in a `&HashSet<String>` of capabilities and comparing it to the users capabilities.
+    ///
+    /// If the users capabilities are a superset of the required_capabilities, the method return a [`AccessControl`] in the [`Authorized`] state.
+    /// Otherwise it will return an error of the type [`Error::Authorization`].
     pub fn authorize(
         self,
         required_capabilities: &HashSet<String>,
@@ -103,6 +151,9 @@ where
     B: Backend<U>,
     U: User,
 {
+    /// After the user is authenticated and authorized, this method can be used to retrieve the user.
+    ///
+    /// The call to this function will always be successful as the typestate-pattern makes sure the user is valid in every way.
     pub fn get_user(self) -> U {
         self.user
             .expect("user is always available in authorized state")
