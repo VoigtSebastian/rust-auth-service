@@ -96,7 +96,7 @@ where
     ///
     /// The authentication process is implemented by the provided `Backend<impl User>` and its `get_user` method.
     ///
-    /// This method may return [`Error::Authentication`] on error, otherwise it returns a AccessControl in the state `Authenticated`.
+    /// This method may return [`Error::Authentication`] on error, otherwise it returns a AccessControl in the state [`Authenticated`].
     pub async fn authenticate(
         self,
         email: &str,
@@ -122,7 +122,7 @@ where
 {
     /// Authorize a user by passing in a `&HashSet<String>` of capabilities and comparing it to the users capabilities.
     ///
-    /// If the users capabilities are a superset of the required_capabilities, the method return a [`AccessControl`] in the [`Authorized`] state.
+    /// If the users capabilities are a superset of the required_capabilities, the method returns a [`AccessControl`] in the [`Authorized`] state.
     /// Otherwise it will return an error of the type [`Error::Authorization`].
     pub fn authorize(
         self,
@@ -153,7 +153,7 @@ where
 {
     /// After the user is authenticated and authorized, this method can be used to retrieve the user.
     ///
-    /// The call to this function will always be successful as the typestate-pattern makes sure the user is valid in every way.
+    /// The call to this function will always succeed as the typestate-pattern makes sure the user is valid, authenticated and authorized.
     pub fn get_user(self) -> U {
         self.user
             .expect("user is always available in authorized state")
