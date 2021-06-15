@@ -153,7 +153,7 @@ where
 {
     /// After the user is authenticated and authorized, this method can be used to retrieve the user.
     ///
-    /// The call to this function will always succeed as the typestate-pattern makes sure the user is valid, authenticated and authorized.
+    /// The call to this function will always succeed as the [typestate pattern](http://cliffle.com/blog/rust-typestate/) makes sure the user is valid, authenticated and authorized.
     pub fn get_user(self) -> U {
         self.user
             .expect("user is always available in authorized state")
@@ -161,9 +161,17 @@ where
 }
 
 // TODO: Seal https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
+/// The [AccessControlState] trait can be implemented to add another state to the [`AccessControl`] struct.
+/// It is part of the compile time safety check implemented using the [typestate pattern](http://cliffle.com/blog/rust-typestate/).
 pub trait AccessControlState {}
+/// The initial state of the [`AccessControl`] struct when initializing it with [`AccessControl::new`].
+/// For details see: [`AccessControl`]
 pub struct Start;
+/// The [`AccessControl`] struct after a user has been successfully authenticated by reading them from the database with [`AccessControl::authenticate`].
+/// For details see: [`AccessControl`]
 pub struct Authenticated;
+/// The state of [`AccessControl`] after a user has been successfully authenticated and authorized by comparing them to the required capabilities with [`AccessControl::authorize`].
+/// For details see: [`AccessControl`]
 pub struct Authorized;
 
 impl AccessControlState for Start {}
