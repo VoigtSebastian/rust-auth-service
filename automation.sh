@@ -109,7 +109,7 @@ elif [ "$1" == "test" ]; then
     cargo test --workspace -- --ignored
 
 elif [ "$1" == "doc" ]; then
-    cargo doc --workspace --no-deps --open
+    cargo doc --workspace --no-deps --document-private-items --open
 
 else
     echo "Unkown argument combination"
