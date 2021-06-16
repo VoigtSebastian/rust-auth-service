@@ -1,7 +1,9 @@
-use actix_session::Session;
+use crate::pages::{LoginPage, RegisterPage, StatusPage};
+
 use database_integration::user::User;
 use middleware::UserDetails;
 
+use actix_session::Session;
 use actix_web::{
     http::header,
     web::{Data, Form},
@@ -11,80 +13,6 @@ use askama::Template;
 use rand::RngCore;
 use serde::Deserialize;
 use sqlx::PgPool;
-
-const PAGES: &[Page] = &[
-    Page {
-        title: "Status",
-        path: "/",
-    },
-    Page {
-        title: "Login",
-        path: "/login",
-    },
-    Page {
-        title: "Register",
-        path: "/register",
-    },
-];
-
-struct Page {
-    title: &'static str,
-    path: &'static str,
-}
-
-#[derive(Template)]
-#[template(path = "status.html")]
-struct StatusPage {
-    title: &'static str,
-    pages: &'static [Page],
-    user: Option<User>,
-}
-
-impl Default for StatusPage {
-    fn default() -> Self {
-        StatusPage {
-            title: "Status",
-            pages: PAGES,
-            user: None,
-        }
-    }
-}
-
-#[derive(Template)]
-#[template(path = "login.html")]
-struct LoginPage {
-    title: &'static str,
-    pages: &'static [Page],
-    error: bool,
-}
-
-impl Default for LoginPage {
-    fn default() -> Self {
-        LoginPage {
-            title: "Login",
-            pages: PAGES,
-            error: false,
-        }
-    }
-}
-
-#[derive(Template)]
-#[template(path = "register.html")]
-struct RegisterPage {
-    title: &'static str,
-    pages: &'static [Page],
-    message: Option<Result<(), &'static str>>,
-}
-
-impl Default for RegisterPage {
-    fn default() -> Self {
-        RegisterPage {
-            title: "Register",
-            pages: PAGES,
-            message: None,
-        }
-    }
-}
 
 #[derive(Deserialize)]
 pub struct Credentials {

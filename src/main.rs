@@ -4,6 +4,7 @@ use database_integration::utility::create_db_pool;
 use rand::RngCore;
 
 mod configuration;
+mod pages;
 mod routes;
 
 /// This Service starts an HttpServer using actix-web with four routes.
