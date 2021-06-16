@@ -27,7 +27,7 @@ To access the web-interface, visit `http://localhost:8080/index.html`.
 This is written by two students, the service **hasn't been audited** and is meant as a study-exercise with room to expand.
 There are most likely multiple security issues that we just don't know about or haven't found yet.
 
-If are interested in giving feedback or found an issue with the implementation, please open an issue and let us know ❤️.
+If are interested in giving feedback or found an issue with the implementation, please open an issue and let us know ❤️
 
 Additionally:
 
