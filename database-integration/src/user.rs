@@ -91,7 +91,10 @@ mod tests {
         let pool = create_db_pool().await.unwrap();
 
         assert!(User::register_user(&pool, &email, &password).await.is_ok());
-        assert!(User::look_up_user(&pool, &email, &password).await.is_ok());
+        let user_lookup = User::look_up_user(&pool, &email, &password).await.unwrap();
+
+        assert_eq!(user_lookup.email, email);
+        assert_eq!(user_lookup.capabilities, HashSet::new());
     }
 
     #[ignore = "Needs database to run"]
