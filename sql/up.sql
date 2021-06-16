@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS capabilities (
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
-  session_id UUID PRIMARY KEY,
+  session_id TEXT PRIMARY KEY,
   user_id SERIAL,
   expiration_date TIMESTAMPTZ NOT NULL,
   CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(user_id)

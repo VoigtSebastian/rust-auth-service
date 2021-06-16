@@ -7,13 +7,16 @@ edition = "2018"
 [dependencies]
 middleware = { path = "middleware" }
 database-integration = { path = "database-integration" }
-service-errors = { path = "service-errors" }
 
+actix-session = "0.4"
 actix-web = "3"
+base64 = "0.13"
 askama = { version = "0.10", features = [ "with-actix-web" ] }
 askama_actix = "0.11"
 dotenv = "0.15.0"
 env_logger = "0.8"
+rand = "0.8"
+serde = "1"
 sqlx = { version = "0.4", features = [ "runtime-actix-native-tls", "postgres", "uuid", "chrono" ] }
 
 [workspace]

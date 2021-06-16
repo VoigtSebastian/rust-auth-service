@@ -36,4 +36,18 @@ impl Backend<user::User> for PostgreSqlBackend {
 
         Box::pin(async move { user::User::look_up_user(&db, &email, &password).await.ok() })
     }
+
+    fn get_user_from_session(
+        &self,
+        session_id: &str,
+    ) -> Pin<Box<dyn Future<Output = Option<user::User>>>> {
+        let db = self.db.clone();
+        let session_id = session_id.to_string();
+
+        Box::pin(async move {
+            user::User::look_up_user_from_session(&db, &session_id)
+                .await
+                .ok()
+        })
+    }
 }

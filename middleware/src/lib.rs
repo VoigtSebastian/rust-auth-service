@@ -10,13 +10,15 @@ use access_control::Backend;
 use access_control::User;
 
 use actix_service::{Service, Transform};
+use actix_session::UserSession;
 use actix_web::dev::{Payload, PayloadStream};
 use actix_web::error::ErrorInternalServerError;
+use actix_web::http::header;
 use actix_web::{
     dev::ServiceRequest,
     dev::ServiceResponse,
     error::{ErrorBadRequest, ErrorForbidden},
-    Error,
+    Error, HttpResponse,
 };
 use actix_web::{FromRequest, HttpMessage, HttpRequest};
 use futures_core::Future;
@@ -108,31 +110,19 @@ where
         let backend = self.backend.clone();
 
         Box::pin(async move {
-            // FIXME: Use cookie sessions
-            let (email, password) = match req
-                .headers()
-                .get("Authorization")
-                .ok_or(ErrorBadRequest("Missing Authorization header"))
-            {
-                // I already wrote a JWT token middleware, this is just an example
-                Ok(header) => {
-                    let mut iter = header
-                        .to_str()
-                        .unwrap_or("default")
-                        .splitn(2, '#')
-                        .map(|s| s.to_string());
-                    let email = iter.next().unwrap();
-                    let password = iter.next().unwrap();
-                    (email, password)
-                }
-                Err(err) => return Err(err),
-            };
+            // Redirect to /login if "id" cookie is not set.
+            let session_id = req.get_session().get::<String>("id")?.ok_or(
+                HttpResponse::Found()
+                    .header(header::LOCATION, "/login")
+                    .finish()
+                    .into_body(),
+            )?;
 
             // FIXME: Refactor into function
             let check_access = || -> Pin<Box<dyn Future<Output = Result<(), Error>>>> {
                 Box::pin(async {
                     let user = AccessControl::new(backend)
-                        .authenticate(&email, &password)
+                        .authenticate_session(&session_id)
                         .await
                         .map_err(|_| ErrorBadRequest("Invalid credentials"))?
                         .authorize(&required_caps)

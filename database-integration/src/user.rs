@@ -6,16 +6,25 @@ use sqlx::{FromRow, PgPool};
 
 use crate::error_mapping;
 
-const SELECT_USER: &str =
+const SELECT_USER: &'static str =
     "SELECT * FROM users WHERE email = $1 AND password = crypt($2, password);";
 
-const INSERT_USER: &str =
+const SELECT_USER_BY_SESSION_ID: &'static str =
+    "SELECT * FROM users WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = $1 AND expiration_date > NOW());";
+
+const INSERT_USER: &'static str =
     "INSERT INTO users (email, password, registration_date) VALUES ($1, crypt($2, gen_salt('bf')), NOW());";
+
+const INSERT_SESSION: &'static str =
+    "INSERT INTO sessions (session_id, user_id, expiration_date) VALUES ($1, $2, NOW() + INTERVAL '5 minutes');";
+
+const DELETE_SESSION: &'static str = "DELETE FROM sessions WHERE session_id = $1;";
 
 const SELECT_CAPABILITIES: &str = "SELECT * FROM capabilities WHERE user_id = $1;";
 
 #[derive(Debug, Clone)]
 pub struct User {
+    user_id: i32,
     pub email: String,
     pub registration_date: DateTime<Utc>,
     pub capabilities: HashSet<String>,
@@ -70,10 +79,59 @@ impl User {
             .collect();
 
         Ok(User {
+            user_id: dbuser.user_id,
             email: dbuser.email,
             registration_date: dbuser.registration_date,
             capabilities: user_caps,
         })
+    }
+
+    pub async fn look_up_user_from_session(
+        connection: &PgPool,
+        session_id: &str,
+    ) -> Result<User, ServiceError> {
+        let dbuser = sqlx::query_as::<_, DbUser>(SELECT_USER_BY_SESSION_ID)
+            .bind(session_id)
+            .fetch_one(connection)
+            .await
+            .map_err(|e| error_mapping::user_lookup_error(e, session_id))?;
+        let user_caps: HashSet<String> = sqlx::query_as::<_, DbCapability>(SELECT_CAPABILITIES)
+            .bind(dbuser.user_id)
+            .fetch_all(connection)
+            .await
+            .map_err(|e| error_mapping::user_lookup_error(e, session_id))?
+            .into_iter()
+            .map(|c: DbCapability| c.label)
+            .collect();
+
+        Ok(User {
+            user_id: dbuser.user_id,
+            email: dbuser.email,
+            registration_date: dbuser.registration_date,
+            capabilities: user_caps,
+        })
+    }
+
+    pub async fn store_session(
+        connection: &PgPool,
+        user: &User,
+        session_id: &str,
+    ) -> Result<(), ServiceError> {
+        sqlx::query(INSERT_SESSION)
+            .bind(session_id)
+            .bind(user.user_id)
+            .execute(connection)
+            .await
+            .unwrap();
+        Ok(())
+    }
+
+    pub async fn remove_session(connection: &PgPool, session_id: &str) {
+        sqlx::query(DELETE_SESSION)
+            .bind(session_id)
+            .execute(connection)
+            .await
+            .expect("database failed");
     }
 }
 

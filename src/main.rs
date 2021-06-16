@@ -1,5 +1,7 @@
+use actix_session::CookieSession;
 use actix_web::{App, HttpServer};
 use database_integration::utility::create_db_pool;
+use rand::RngCore;
 
 mod configuration;
 mod routes;
@@ -19,12 +21,15 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("could not create database pool");
 
+    let mut secure_key = [0u8; 32];
+    rand::thread_rng().fill_bytes(&mut secure_key);
+
     HttpServer::new(move || {
         App::new()
-            // Store database pool in the application data to have it available in requests
-            .data(pool.clone())
             .wrap(actix_web::middleware::Logger::default())
-            .configure(configuration::website)
+            // FIXME: Use secure=true with HTTPS
+            .wrap(CookieSession::signed(&secure_key).name("id").secure(false))
+            .configure(|c| configuration::website(c, &pool))
             .configure(|c| configuration::user_config(c, &pool))
             .configure(|c| configuration::admin_config(c, &pool))
     })

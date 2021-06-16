@@ -15,6 +15,7 @@ where
     U: User,
 {
     fn get_user(&self, email: &str, password: &str) -> Pin<Box<dyn Future<Output = Option<U>>>>;
+    fn get_user_from_session(&self, session_id: &str) -> Pin<Box<dyn Future<Output = Option<U>>>>;
 }
 
 pub trait User {
@@ -53,7 +54,7 @@ where
     B: Backend<U>,
     U: User,
 {
-    pub async fn authenticate(
+    pub async fn authenticate_creds(
         self,
         email: &str,
         password: &str,
@@ -61,6 +62,22 @@ where
         let user = self
             .backend
             .get_user(email, password)
+            .await
+            .ok_or(Error::Authentication)?;
+        Ok(AccessControl {
+            state: Authenticated,
+            backend: self.backend,
+            user: Some(user),
+        })
+    }
+
+    pub async fn authenticate_session(
+        self,
+        session_id: &str,
+    ) -> Result<AccessControl<Authenticated, B, U>, Error> {
+        let user = self
+            .backend
+            .get_user_from_session(session_id)
             .await
             .ok_or(Error::Authentication)?;
         Ok(AccessControl {

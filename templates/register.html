@@ -1,19 +1,39 @@
 {% extends "base.html" %}
-{% block title %}Register{% endblock %}
 
 {% block content %}
 <section id="register" class="py-5">
   <h1>Register</h1>
+
+  {% match message %}
+  {% when Some with (status) %}
+  {% match status %}
+  {% when Ok with (_) %}
+  <div class="alert alert-success alert-dismissible" role="alert">
+    <strong>Successfully registered:</strong> you can now login.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% when Err with (msg) %}
+  <div class="alert alert-danger alert-dismissible" role="alert">
+    <strong>Registration failed:</strong> {{ msg }}.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endmatch %}
+  {% when None %}
+  {% endmatch %}
+
   <form action="/register" method="POST" autocomplete="off">
     <div class="mb-3">
       <label for="username" class="form-label">Username:</label>
-      <input type="text" id="username" required class="form-control">
+      <input type="text" id="username" name="username" required aria-describedby="usernameHelpBlock" class="form-control">
+      <div id="usernameHelpBlock" class="form-text">
+        Your username must be alphanumeric.
+      </div>
     </div>
     <div class="mb-3">
       <label for="password" class="form-label">Password:</label>
-      <input type="password" id="password" autocomplete="new-password" required class="form-control">
+      <input type="password" id="password" name="password" autocomplete="new-password" required aria-describedby="passwordHelpBlock" class="form-control">
       <div id="passwordHelpBlock" class="form-text">
-        Your password must be 12 or more characters long.
+        Your password must be 12 or more and 256 or less characters in length.
       </div>
     </div>
     <button type="submit" class="btn btn-primary">Register</button>

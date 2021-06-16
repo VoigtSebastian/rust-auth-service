@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{collections::HashSet, fmt};
 
 use crate::routes;
 use database_integration::PostgreSqlBackend;
@@ -22,10 +22,39 @@ impl fmt::Display for Capabilities {
     }
 }
 
-pub fn website(cfg: &mut web::ServiceConfig) {
-    cfg.service(resource("/").route(web::get().to(routes::status_page)));
-    cfg.service(resource("/login").route(web::get().to(routes::login_page)));
-    cfg.service(resource("/register").route(web::get().to(routes::register_page)));
+pub fn website(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
+    // Register
+    cfg.service(
+        resource("/register")
+            .data(pool.clone())
+            .route(web::get().to(routes::register_page))
+            .route(web::post().to(routes::do_register)),
+    );
+
+    // Login
+    cfg.service(
+        resource("/login")
+            .data(pool.clone())
+            .route(web::get().to(routes::login_page))
+            .route(web::post().to(routes::do_login)),
+    );
+
+    // Logout
+    cfg.service(
+        resource("/logout")
+            .data(pool.clone())
+            .route(web::post().to(routes::do_logout)),
+    );
+
+    // Status
+    cfg.service(
+        resource("/")
+            .wrap(SimpleStringMiddleware::new(
+                PostgreSqlBackend { db: pool.clone() },
+                HashSet::new(),
+            ))
+            .route(web::get().to(routes::status_page)),
+    );
 }
 
 pub fn user_config(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {

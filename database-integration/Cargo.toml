@@ -8,8 +8,10 @@ edition = "2018"
 access-control = { path = "../access-control" }
 service-errors = { path = "../service-errors" }
 
-actix-rt = "1"
 anyhow = "1.0"
 chrono = "0.4.19"
 dotenv = "0.15.0"
 sqlx = { version = "0.4", features = [ "runtime-actix-native-tls", "postgres", "uuid", "chrono" ] }
+
+[dev-dependencies]
+actix-rt = "1"
