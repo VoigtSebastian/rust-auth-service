@@ -24,14 +24,14 @@ pub enum Error {
 /// To implement a backend you will need to provide a valid [`User`].
 /// # Backend operations
 /// Currently there is ony the [`Backend::get_user`] method that needs to be implemented to build a valid backend.
-/// This function retrieves a user from the database by providing a email and password.
+/// This function retrieves a user from the database by providing a username and password.
 /// # Implementations
 /// Currently there is the PostgreSqlBackend which implements an example workflow for the backend.
 pub trait Backend<U>: Clone
 where
     U: User,
 {
-    fn get_user(&self, email: &str, password: &str) -> Pin<Box<dyn Future<Output = Option<U>>>>;
+    fn get_user(&self, username: &str, password: &str) -> Pin<Box<dyn Future<Output = Option<U>>>>;
     fn get_user_from_session(&self, session_id: &str) -> Pin<Box<dyn Future<Output = Option<U>>>>;
 }
 
@@ -92,7 +92,7 @@ where
     B: Backend<U>,
     U: User,
 {
-    // TODO: Make email username -> emails are hard
+    // TODO: Make username username -> usernames are hard
     /// Authenticate a user by providing a username and password.
     ///
     /// The authentication process is implemented by the provided `Backend<impl User>` and its `get_user` method.
@@ -100,12 +100,12 @@ where
     /// This method may return [`Error::Authentication`] on error, otherwise it returns a AccessControl in the state [`Authenticated`].
     pub async fn authenticate_creds(
         self,
-        email: &str,
+        username: &str,
         password: &str,
     ) -> Result<AccessControl<Authenticated, B, U>, Error> {
         let user = self
             .backend
-            .get_user(email, password)
+            .get_user(username, password)
             .await
             .ok_or(Error::Authentication)?;
         Ok(AccessControl {

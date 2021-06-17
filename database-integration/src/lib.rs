@@ -16,7 +16,7 @@ pub struct PostgreSqlBackend {
 
 impl UserTrait for user::User {
     fn name(&self) -> &str {
-        &self.email
+        &self.username
     }
 
     fn capabilities(&self) -> &HashSet<String> {
@@ -27,14 +27,18 @@ impl UserTrait for user::User {
 impl Backend<user::User> for PostgreSqlBackend {
     fn get_user(
         &self,
-        email: &str,
+        username: &str,
         password: &str,
     ) -> Pin<Box<dyn Future<Output = Option<user::User>>>> {
         let db = self.db.clone();
-        let email = email.to_string();
+        let username = username.to_string();
         let password = password.to_string();
 
-        Box::pin(async move { user::User::look_up_user(&db, &email, &password).await.ok() })
+        Box::pin(async move {
+            user::User::look_up_user(&db, &username, &password)
+                .await
+                .ok()
+        })
     }
 
     fn get_user_from_session(
