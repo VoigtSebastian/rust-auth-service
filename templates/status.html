@@ -1,14 +1,11 @@
-{% extends "base.html" %}
-{% block title %}Status{% endblock %}
-
-{% block content %}
+{% extends "base.html" %} {% block title %}Status{% endblock %} {% block content
+%}
 <section id="status" class="py-5">
-  {% match user %}
-  {% when Some with (user) %}
+  {% match user %} {% when Some with (user) %}
   <h1>Account Information</h1>
   <dl class="row">
     <dt class="col-sm-2">Username</dt>
-    <dd class="col-sm-10">{{ user.email }}</dd>
+    <dd class="col-sm-10">{{ user.username }}</dd>
     <dt class="col-sm-2">Registration Date</dt>
     <dd class="col-sm-10">{{ user.registration_date }}</dd>
   </dl>
@@ -18,8 +15,6 @@
     <li class="list-group-item">{{ cap }}</li>
     {% endfor %}
   </ul>
-  {% when None %}
-  Not logged in
-  {% endmatch %}
+  {% when None %} Not logged in {% endmatch %}
 </section>
 {% endblock %}

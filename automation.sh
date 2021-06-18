@@ -44,7 +44,7 @@ function database_command {
 }
 
 function database_add_user {
-    database_command "INSERT INTO users (email, password, registration_date) VALUES ('$1', crypt('$2', gen_salt('bf')), NOW());"
+    database_command "INSERT INTO users (username, password, registration_date) VALUES ('$1', crypt('$2', gen_salt('bf')), NOW());"
 }
 
 function database_add_session {
@@ -59,7 +59,7 @@ function list_exipired_sessions {
     database_command "select * from sessions WHERE expiration_date < NOW();"
 }
 
-# Normally you would check email AND password
+# Normally you would check username AND password
 function select_user_by_password {
     database_command "select * from users where password = crypt('$1', password);"
 }
@@ -80,7 +80,7 @@ elif [ "$1" == "db" ] && [ "$2" == "down" ]; then
     database_down
 
 elif [ "$1" == "insert" ] && [ "$2" == "user" ] && [ $# == 4 ]; then
-    echo "Inserting new user with email $3 and password $4"
+    echo "Inserting new user with username $3 and password $4"
     database_add_user "$3" "$4"
 
 elif [ "$1" == "insert" ] && [ "$2" == "session" ] && [ $# == 3 ]; then
@@ -107,6 +107,9 @@ elif [ "$1" == "psql-uri" ]; then
 
 elif [ "$1" == "test" ]; then
     cargo test --workspace -- --ignored
+
+elif [ "$1" == "doc" ]; then
+    cargo doc --workspace --no-deps --document-private-items --open
 
 else
     echo "Unkown argument combination"
