@@ -10,7 +10,6 @@ database-integration = { path = "database-integration" }
 
 actix-session = "0.4"
 actix-web = "3"
-base64 = "0.13"
 askama = { version = "0.10", features = [ "with-actix-web" ] }
 askama_actix = "0.11"
 dotenv = "0.15.0"

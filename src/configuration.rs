@@ -23,10 +23,12 @@ impl fmt::Display for Capabilities {
 }
 
 pub fn website(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
+    let backend = PostgreSqlBackend { db: pool.clone() };
+
     // Register
     cfg.service(
         resource("/register")
-            .data(pool.clone())
+            .wrap(SimpleStringMiddleware::new(backend.clone(), HashSet::new()))
             .route(web::get().to(routes::register_page))
             .route(web::post().to(routes::do_register)),
     );
@@ -34,7 +36,7 @@ pub fn website(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
     // Login
     cfg.service(
         resource("/login")
-            .data(pool.clone())
+            .wrap(SimpleStringMiddleware::new(backend.clone(), HashSet::new()))
             .route(web::get().to(routes::login_page))
             .route(web::post().to(routes::do_login)),
     );
@@ -42,17 +44,14 @@ pub fn website(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
     // Logout
     cfg.service(
         resource("/logout")
-            .data(pool.clone())
+            .wrap(SimpleStringMiddleware::new(backend.clone(), HashSet::new()))
             .route(web::post().to(routes::do_logout)),
     );
 
     // Status
     cfg.service(
         resource("/")
-            .wrap(SimpleStringMiddleware::new(
-                PostgreSqlBackend { db: pool.clone() },
-                HashSet::new(),
-            ))
+            .wrap(SimpleStringMiddleware::new(backend, HashSet::new()))
             .route(web::get().to(routes::status_page)),
     );
 }

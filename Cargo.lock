@@ -1396,8 +1396,10 @@ dependencies = [
  "actix-service",
  "actix-session",
  "actix-web",
+ "base64",
  "futures-core",
  "futures-util",
+ "rand 0.8.4",
 ]
 
 [[package]]
@@ -1881,7 +1883,6 @@ dependencies = [
  "actix-web",
  "askama",
  "askama_actix",
- "base64",
  "database-integration",
  "dotenv",
  "env_logger",

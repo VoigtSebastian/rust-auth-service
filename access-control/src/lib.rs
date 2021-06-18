@@ -16,6 +16,17 @@ where
 {
     fn get_user(&self, email: &str, password: &str) -> Pin<Box<dyn Future<Output = Option<U>>>>;
     fn get_user_from_session(&self, session_id: &str) -> Pin<Box<dyn Future<Output = Option<U>>>>;
+    fn register_user(
+        &self,
+        username: impl AsRef<str>,
+        password: impl AsRef<str>,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error>>>>>;
+    fn store_session(
+        &self,
+        user: &U,
+        session_id: impl AsRef<str>,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error>>>>>;
+    fn remove_session(&self, session_id: impl AsRef<str>) -> Pin<Box<dyn Future<Output = ()>>>;
 }
 
 pub trait User {
