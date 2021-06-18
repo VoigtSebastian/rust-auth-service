@@ -1,4 +1,3 @@
-use actix_session::CookieSession;
 use actix_web::{App, HttpServer};
 use database_integration::utility::create_db_pool;
 use rand::RngCore;
@@ -28,8 +27,6 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .wrap(actix_web::middleware::Logger::default())
-            // FIXME: Use secure=true with HTTPS
-            .wrap(CookieSession::signed(&secure_key).name("id").secure(false))
             .configure(|c| configuration::website(c, &pool))
             .configure(|c| configuration::user_config(c, &pool))
             .configure(|c| configuration::admin_config(c, &pool))

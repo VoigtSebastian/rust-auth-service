@@ -11,7 +11,7 @@ use access_control::Backend;
 use access_control::User as UserTrait;
 
 use actix_service::{Service, Transform};
-use actix_session::UserSession;
+use actix_web::cookie::{Cookie, SameSite};
 use actix_web::dev::{Payload, PayloadStream, ServiceRequest, ServiceResponse};
 use actix_web::error::{
     ErrorBadRequest, ErrorForbidden, ErrorInternalServerError, ErrorUnauthorized,
@@ -21,6 +21,7 @@ use actix_web::{Error, FromRequest, HttpMessage, HttpRequest, HttpResponse};
 use futures_core::Future;
 use futures_util::future::{ok, Ready};
 use rand::RngCore;
+use time::{Duration, OffsetDateTime};
 
 pub struct SimpleStringMiddleware<T, U>
 where
@@ -117,7 +118,7 @@ where
             req.extensions_mut().insert(item);
 
             let fut = srv.call(req);
-            let res = fut.await?;
+            let mut res = fut.await?;
 
             let item = res
                 .request()
@@ -129,19 +130,25 @@ where
                 match action {
                     SessionStateAction::Login(session_id) => {
                         // Add cookie
-                        res.request()
-                            .get_session()
-                            .set("id", session_id)
-                            .map_err(|_| ErrorInternalServerError("failed to set session"))?;
+                        let cookie = Cookie::build("id", session_id)
+                            // FIXME: Use true when HTTPS is implemented
+                            .secure(false)
+                            .http_only(true)
+                            .same_site(SameSite::Lax)
+                            .path("/")
+                            .finish();
+                        res.response_mut().add_cookie(&cookie).unwrap();
                     }
                     SessionStateAction::Logout => {
-                        let session = res.request().get_session();
-                        // Remove database session if it is shipped in the cookie.
-                        if let Ok(Some(session_id)) = session.get::<String>("id") {
-                            backend.remove_session(&session_id).await;
+                        if let Some(mut cookie) = res.request().cookie("id") {
+                            // Remove database session
+                            backend.remove_session(cookie.value()).await;
+                            // Delete the cookie
+                            cookie.set_value("");
+                            cookie.set_max_age(Duration::zero());
+                            cookie.set_expires(OffsetDateTime::now_utc() - Duration::days(365));
+                            res.response_mut().add_cookie(&cookie).unwrap();
                         }
-                        // Purge the cookie
-                        session.purge();
                     }
                 }
             }
@@ -306,18 +313,15 @@ where
             };
 
             // Redirect to /login if "id" cookie is not set or we can't find the extensions.
-            let session_id = req
-                .get_session()
-                .get::<String>("id")?
-                .ok_or(login_redirect())?;
+            let cookie = req.cookie("id").ok_or(login_redirect())?;
             let mut extensions = req.extensions_mut();
             let item = extensions
                 .get_mut::<SessionStateItem<B, U>>()
                 .ok_or(login_redirect())?;
 
-            // Authenticate and authorize with session_id
+            // Authenticate and authorize with the session ID
             let user = AccessControl::new(item.backend.clone())
-                .authenticate_session(&session_id)
+                .authenticate_session(cookie.value())
                 .await
                 .map_err(|_| ErrorUnauthorized("Invalid credentials"))?
                 .authorize(&item.required_caps)
