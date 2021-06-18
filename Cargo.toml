@@ -8,7 +8,6 @@ edition = "2018"
 middleware = { path = "middleware" }
 database-integration = { path = "database-integration" }
 
-actix-session = "0.4"
 actix-web = "3"
 askama = { version = "0.10", features = [ "with-actix-web" ] }
 askama_actix = "0.11"
