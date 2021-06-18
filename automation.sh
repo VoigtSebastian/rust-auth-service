@@ -64,7 +64,14 @@ function select_user_by_password {
     database_command "select * from users where password = crypt('$1', password);"
 }
 
-if [ $# == 0 ] || [ "$1" == "container" ] && [ "$2" == "start" ]; then
+if [ $# == 0 ] || [ "$1" == "testenv" ] && [ "$2" == "restart" ]; then
+    docker container stop $CONTAINER_NAME
+    docker container rm $CONTAINER_NAME
+    start_container
+    sleep 5
+    database_up
+
+elif [ $# == 0 ] || [ "$1" == "container" ] && [ "$2" == "start" ]; then
     start_container
 
 elif [ "$1" == "container" ] && [ "$2" == "rm" ]; then
