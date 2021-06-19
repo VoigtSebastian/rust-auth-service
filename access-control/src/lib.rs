@@ -2,6 +2,28 @@ use std::collections::HashSet;
 use std::future::Future;
 use std::pin::Pin;
 
+use argon2::password_hash::SaltString;
+use argon2::Params;
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+
+/// Memory cost of 15 MiB as per
+/// (OWASP)[https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id]
+pub const ARGON2_M_COST: u32 = 15 * 1024;
+
+/// 2 Iterations as per
+/// (OWASP)[https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id]
+pub const ARGON2_T_COST: u32 = 2;
+
+/// Degree of parallelism of 1 as per
+/// (OWASP)[https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id]
+pub const ARGON2_P_COST: u32 = 1;
+
+/// Fake hash used to archive constant time in the authentication function.
+///
+/// The PHC hash is derived from an empty password.
+pub const FAKE_PHC_HASH: &'static str =
+    "$argon2id$v=19$m=15360,t=2,p=1$saltsaltsaltsalt$1hx6lvjIBIrxykf2XmEdsNUxMAsJ6FBKtP5g4R0UygY";
+
 /// Access-Control errors for authentication and authorization
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -17,6 +39,12 @@ pub enum Error {
     /// A error when verifying a users identity is an authentication error.
     #[error("Permission denied")]
     Authorization,
+    /// The error to return when the registration failed because the username is invalid
+    #[error("Username does not match the policy")]
+    UsernamePolicy,
+    /// The error to return when the password is insufficient
+    #[error("Password does not match the policy")]
+    PasswordPolicy,
 }
 
 /// The Backend trait defines the operations of the database layer.
@@ -31,12 +59,15 @@ pub trait Backend<U>: Clone
 where
     U: User,
 {
-    fn get_user(&self, username: &str, password: &str) -> Pin<Box<dyn Future<Output = Option<U>>>>;
-    fn get_user_from_session(&self, session_id: &str) -> Pin<Box<dyn Future<Output = Option<U>>>>;
+    fn get_user(&self, username: impl AsRef<str>) -> Pin<Box<dyn Future<Output = Option<U>>>>;
+    fn get_user_from_session(
+        &self,
+        session_id: impl AsRef<str>,
+    ) -> Pin<Box<dyn Future<Output = Option<U>>>>;
     fn register_user(
         &self,
         username: impl AsRef<str>,
-        password: impl AsRef<str>,
+        password_hash: impl AsRef<str>,
     ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error>>>>>;
     fn store_session(
         &self,
@@ -55,8 +86,21 @@ where
 /// Capabilities are just a collection of Strings that describe the operations a user is allowed to do.
 /// For example, a normal Administrator could have the capabilities of `hash_set!{ "Admin", "AdminRead", "AdminWrite"};`.
 pub trait User {
-    fn name(&self) -> &str;
+    fn username(&self) -> &str;
+    fn password_hash(&self) -> &str;
     fn capabilities(&self) -> &HashSet<String>;
+}
+
+fn get_argon2_ctx() -> Argon2<'static> {
+    let params = Params::default();
+    Argon2::new(
+        None,
+        ARGON2_T_COST,
+        ARGON2_M_COST,
+        ARGON2_P_COST,
+        params.version,
+    )
+    .expect("invalid argon2 parameters")
 }
 
 /// AccessControl defines the behavior of a `Backend<impl User>` and ensures its safety at compile time.
@@ -103,32 +147,42 @@ where
     B: Backend<U>,
     U: User,
 {
-    // TODO: Make username username -> usernames are hard
-    /// Authenticate a user by providing a username and password.
+    /// Authenticate a user by providing a username and password. This function must be constant time.
     ///
     /// The authentication process is implemented by the provided `Backend<impl User>` and its `get_user` method.
     ///
     /// This method may return [`Error::Authentication`] on error, otherwise it returns a AccessControl in the state [`Authenticated`].
     pub async fn authenticate_creds(
         self,
-        username: &str,
-        password: &str,
+        username: impl AsRef<str>,
+        password: impl AsRef<str>,
     ) -> Result<AccessControl<Authenticated, B, U>, Error> {
-        let user = self
-            .backend
-            .get_user(username, password)
-            .await
-            .ok_or(Error::Authentication)?;
-        Ok(AccessControl {
-            state: Authenticated,
-            backend: self.backend,
-            user: Some(user),
-        })
+        let user = self.backend.get_user(username).await;
+
+        // We can't do an early return if the user does not exist in the database so
+        // we verify with a fake hash
+        // Maybe constant time with https://docs.rs/subtle/2.4.0/subtle/struct.CtOption.html?
+        let fake_parsed_hash =
+            PasswordHash::new(FAKE_PHC_HASH).expect("fake hash is invalid PHC hash");
+        let parsed_hash = match user {
+            Some(ref user) => PasswordHash::new(user.password_hash()).unwrap_or(fake_parsed_hash),
+            None => fake_parsed_hash,
+        };
+
+        match get_argon2_ctx().verify_password(password.as_ref().as_bytes(), &parsed_hash) {
+            Ok(_) => Ok(AccessControl {
+                state: Authenticated,
+                backend: self.backend,
+                // If the password verifies, the user is some!
+                user,
+            }),
+            Err(_) => Err(Error::Authentication),
+        }
     }
 
     pub async fn authenticate_session(
         self,
-        session_id: &str,
+        session_id: impl AsRef<str>,
     ) -> Result<AccessControl<Authenticated, B, U>, Error> {
         let user = self
             .backend
@@ -140,6 +194,43 @@ where
             backend: self.backend,
             user: Some(user),
         })
+    }
+
+    /// Register a new user account
+    ///
+    /// The actual registration with the backend should be constant time. Otherwise an attacker could try to register
+    /// already existing usernames and see if the registration takes longer than if the username does not exist.
+    /// Furthermore, no error is returned, if the user does already exists, only if the username or password does not
+    /// match the policy.
+    pub async fn register(
+        self,
+        username: impl AsRef<str>,
+        password: impl AsRef<str>,
+    ) -> Result<(), Error> {
+        let username = username.as_ref().to_lowercase();
+
+        if username.is_empty() || !username.chars().all(|c| char::is_ascii_alphanumeric(&c)) {
+            return Err(Error::UsernamePolicy);
+        }
+
+        if password.as_ref().chars().count() < 12 || password.as_ref().chars().count() > 256 {
+            return Err(Error::PasswordPolicy);
+        }
+
+        let salt = SaltString::generate(rand::thread_rng());
+        let password_hash = get_argon2_ctx()
+            .hash_password_simple(password.as_ref().as_bytes(), salt.as_ref())
+            .unwrap()
+            .to_string();
+
+        self.backend
+            .register_user(username, password_hash)
+            .await
+            // Ignore the error case
+            .unwrap_or(());
+
+        // Return ok even if the registration with the backend failed
+        Ok(())
     }
 }
 

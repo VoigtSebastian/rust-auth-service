@@ -1,3 +1,4 @@
+use access_control::User as UserTrait;
 use chrono::{DateTime, Utc};
 use service_errors::ServiceError;
 use sqlx::{FromRow, PgPool};
@@ -5,32 +6,30 @@ use std::collections::HashSet;
 
 use crate::error_mapping;
 
-/// This constant describes the query to select a [`DbUser`] by their name and password.
+/// This constant describes the query to select a [`DbUser`] by their username.
 /// ```
 /// sqlx::query_as::<_, DbUser>(SELECT_USER)
 ///     .bind(username)
-///     .bind(password)
 ///     .fetch_one(connection)
 ///     .await
 /// ```
-const SELECT_USER: &'static str =
-    "SELECT * FROM users WHERE username = $1 AND password = crypt($2, password);";
+pub const SELECT_USER: &'static str = "SELECT * FROM users WHERE username = $1;";
 
 const SELECT_USER_BY_SESSION_ID: &'static str =
     "SELECT * FROM users WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = $1 AND expiration_date > NOW());";
 
-/// This constant describes the query to insert a new [`DbUser`] by their name and password.
+/// This constant describes the query to insert a new [`DbUser`] by their name and password hash.
 /// The registration_date that is part of the [`DbUser`] is set to the current time using postgres' NOW() function.
-/// The password is hashed using postgres' `crypt()` function with `gen_salt('bf')` to generate a blowfish salt.
+/// The password hash comes from the access control library and contains the PHC hash.
 /// ```
 /// sqlx::query(INSERT_USER)
 ///     .bind(username)
-///     .bind(password)
+///     .bind(password_hash)
 ///     .execute(connection)
 ///     .await
 /// ```
 const INSERT_USER: &'static str =
-    "INSERT INTO users (username, password, registration_date) VALUES ($1, crypt($2, gen_salt('bf')), NOW());";
+    "INSERT INTO users (username, password_hash, registration_date) VALUES ($1, $2, NOW());";
 
 const INSERT_SESSION: &'static str =
     "INSERT INTO sessions (session_id, user_id, expiration_date) VALUES ($1, $2, NOW() + INTERVAL '5 minutes');";
@@ -55,8 +54,23 @@ const SELECT_CAPABILITIES: &str = "SELECT * FROM capabilities WHERE user_id = $1
 pub struct User {
     user_id: i32,
     pub username: String,
+    password_hash: String,
     pub registration_date: DateTime<Utc>,
     pub capabilities: HashSet<String>,
+}
+
+impl UserTrait for User {
+    fn username(&self) -> &str {
+        &self.username
+    }
+
+    fn password_hash(&self) -> &str {
+        &self.password_hash
+    }
+
+    fn capabilities(&self) -> &HashSet<String> {
+        &self.capabilities
+    }
 }
 
 /// The [`DbUser`] struct represents the users table in the database.
@@ -69,7 +83,7 @@ pub struct User {
 /// CREATE TABLE IF NOT EXISTS users (
 ///   user_id SERIAL PRIMARY KEY,
 ///   username TEXT NOT NULL UNIQUE,
-///   password TEXT NOT NULL,
+///   password_hash TEXT NOT NULL,
 ///   registration_date TIMESTAMPTZ NOT NULL
 /// );
 /// ```
@@ -77,7 +91,7 @@ pub struct User {
 struct DbUser {
     user_id: i32,
     username: String,
-    password: String,
+    password_hash: String,
     registration_date: DateTime<Utc>,
 }
 
@@ -110,11 +124,11 @@ impl User {
     pub async fn register_user(
         connection: &PgPool,
         username: &str,
-        password: &str,
+        password_hash: &str,
     ) -> Result<sqlx::postgres::PgDone, ServiceError> {
         sqlx::query(INSERT_USER)
             .bind(username)
-            .bind(password)
+            .bind(password_hash)
             .execute(connection)
             .await
             .map_err(|e| error_mapping::user_registration_error(e, username))
@@ -131,12 +145,12 @@ impl User {
     /// If successful, the function return a [`User`] that combines both the [`SELECT_USER`] and [`SELECT_CAPABILITIES`] queries, by reading out the necessary data.
     pub async fn look_up_user(
         connection: &PgPool,
-        username: &str,
-        password: &str,
+        username: impl AsRef<str>,
     ) -> Result<User, ServiceError> {
+        let username = username.as_ref();
+
         let dbuser = sqlx::query_as::<_, DbUser>(SELECT_USER)
             .bind(username)
-            .bind(password)
             .fetch_one(connection)
             .await
             .map_err(|e| error_mapping::user_lookup_error(e, username))?;
@@ -152,6 +166,7 @@ impl User {
         Ok(User {
             user_id: dbuser.user_id,
             username: dbuser.username,
+            password_hash: dbuser.password_hash,
             registration_date: dbuser.registration_date,
             capabilities: user_caps,
         })
@@ -178,6 +193,7 @@ impl User {
         Ok(User {
             user_id: dbuser.user_id,
             username: dbuser.username,
+            password_hash: dbuser.password_hash,
             registration_date: dbuser.registration_date,
             capabilities: user_caps,
         })
@@ -216,16 +232,14 @@ mod tests {
     /// Tries to register and look up a user by running [`User::register_user`] and [`User::look_up_user`].
     async fn connect_register_lookup() {
         let username = format!("{}@test.de", Utc::now()).replace(" ", "_");
-        let password = format!("{}", Utc::now());
+        let password_hash = format!("{}", Utc::now());
 
         let pool = create_db_pool().await.unwrap();
 
-        assert!(User::register_user(&pool, &username, &password)
+        assert!(User::register_user(&pool, &username, &password_hash)
             .await
             .is_ok());
-        let user_lookup = User::look_up_user(&pool, &username, &password)
-            .await
-            .unwrap();
+        let user_lookup = User::look_up_user(&pool, &username).await.unwrap();
 
         assert_eq!(user_lookup.username, username);
         assert_eq!(user_lookup.capabilities, HashSet::new());
@@ -236,14 +250,14 @@ mod tests {
     /// Makes sure a user cannot register itself twice.
     async fn register_twice() {
         let username = format!("{}@test.de", Utc::now()).replace(" ", "");
-        let password = format!("{}", Utc::now());
+        let password_hash = format!("{}", Utc::now());
 
         let pool = create_db_pool().await.unwrap();
 
-        assert!(User::register_user(&pool, &username, &password)
+        assert!(User::register_user(&pool, &username, &password_hash)
             .await
             .is_ok());
-        assert!(User::register_user(&pool, &username, &password)
+        assert!(User::register_user(&pool, &username, &password_hash)
             .await
             .is_err());
     }
@@ -253,12 +267,9 @@ mod tests {
     /// Tries to look up a user that does not exist.
     async fn lookup_non_existing_user() {
         let username = "000000000000000000".to_string();
-        let password = "000000000000000000".to_string();
 
         let pool = create_db_pool().await.unwrap();
 
-        assert!(User::look_up_user(&pool, &username, &password)
-            .await
-            .is_err());
+        assert!(User::look_up_user(&pool, &username).await.is_err());
     }
 }

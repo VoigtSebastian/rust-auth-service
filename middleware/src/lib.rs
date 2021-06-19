@@ -205,11 +205,13 @@ where
         // https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html#user-ids
         let username = username.as_ref().to_lowercase();
 
-        let user = item
-            .backend
-            .get_user(username.as_ref(), password.as_ref())
+        let user = AccessControl::new(item.backend.clone())
+            .authenticate_creds(username, password)
             .await
-            .ok_or(ErrorUnauthorized("invalid username or password"))?;
+            .map_err(|_| ErrorUnauthorized("invalid username or password"))?
+            .authorize(&HashSet::new())
+            .expect("no capabilities required to login")
+            .get_user();
 
         // Use 256 bit length for the session ID. This is double of the minimum required by OWASP.
         let mut key = [0u8; 32];
@@ -243,29 +245,17 @@ where
     pub async fn register(
         &self,
         username: impl AsRef<str>,
-        password: impl AsRef<str>,
+        password_hash: impl AsRef<str>,
     ) -> Result<(), Error> {
         let mut extensions = self.req.extensions_mut();
         let item = extensions
             .get_mut::<SessionStateItem<B, U>>()
             .ok_or(ErrorInternalServerError("extractor failed"))?;
 
-        let username = username.as_ref().to_lowercase();
-
-        if !username.chars().all(|c| char::is_ascii_alphanumeric(&c)) {
-            return Err(ErrorBadRequest("username must be alphanumeric"));
-        }
-        if password.as_ref().chars().count() < 12 || password.as_ref().chars().count() > 256 {
-            return Err(ErrorBadRequest(
-                "password must be 12 or more and 256 or less characters in length",
-            ));
-        }
-
-        item.backend
-            .register_user(&username, password)
+        AccessControl::new(item.backend.clone())
+            .register(username, password_hash)
             .await
-            .map(|_| ())
-            .map_err(|_| ErrorInternalServerError("registration failed"))
+            .map_err(|e| ErrorBadRequest(e))
     }
 }
 

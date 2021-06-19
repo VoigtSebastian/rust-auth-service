@@ -1,9 +1,8 @@
-use std::collections::HashSet;
 use std::error;
 use std::future::Future;
 use std::pin::Pin;
 
-use access_control::{Backend, User as UserTrait};
+use access_control::Backend;
 use sqlx::PgPool;
 
 mod error_mapping;
@@ -15,39 +14,23 @@ pub struct PostgreSqlBackend {
     pub db: PgPool,
 }
 
-impl UserTrait for user::User {
-    fn name(&self) -> &str {
-        &self.username
-    }
-
-    fn capabilities(&self) -> &HashSet<String> {
-        &self.capabilities
-    }
-}
-
 impl Backend<user::User> for PostgreSqlBackend {
     fn get_user(
         &self,
-        username: &str,
-        password: &str,
+        username: impl AsRef<str>,
     ) -> Pin<Box<dyn Future<Output = Option<user::User>>>> {
         let db = self.db.clone();
-        let username = username.to_string();
-        let password = password.to_string();
+        let username = username.as_ref().to_string();
 
-        Box::pin(async move {
-            user::User::look_up_user(&db, &username, &password)
-                .await
-                .ok()
-        })
+        Box::pin(async move { user::User::look_up_user(&db, &username).await.ok() })
     }
 
     fn get_user_from_session(
         &self,
-        session_id: &str,
+        session_id: impl AsRef<str>,
     ) -> Pin<Box<dyn Future<Output = Option<user::User>>>> {
         let db = self.db.clone();
-        let session_id = session_id.to_string();
+        let session_id = session_id.as_ref().to_string();
 
         Box::pin(async move {
             user::User::look_up_user_from_session(&db, &session_id)
@@ -59,14 +42,14 @@ impl Backend<user::User> for PostgreSqlBackend {
     fn register_user(
         &self,
         username: impl AsRef<str>,
-        password: impl AsRef<str>,
+        password_hash: impl AsRef<str>,
     ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error>>>>> {
         let db = self.db.clone();
         let username = username.as_ref().to_string();
-        let password = password.as_ref().to_string();
+        let password_hash = password_hash.as_ref().to_string();
 
         Box::pin(async move {
-            user::User::register_user(&db, &username, &&password)
+            user::User::register_user(&db, &username, &password_hash)
                 .await
                 .map(|_| ())
                 .map_err(|e| Box::new(e) as Box<dyn error::Error>)
