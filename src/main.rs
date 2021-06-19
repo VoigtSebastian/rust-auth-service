@@ -1,6 +1,12 @@
-use actix_web::{App, HttpServer};
+use std::{fs::File, io::BufReader};
+
 use database_integration::utility::create_db_pool;
-use rand::RngCore;
+
+use actix_web::{App, HttpServer};
+use rustls::{
+    internal::pemfile::{certs, pkcs8_private_keys},
+    NoClientAuth, ServerConfig,
+};
 
 mod configuration;
 mod pages;
@@ -21,8 +27,13 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("could not create database pool");
 
-    let mut secure_key = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut secure_key);
+    // Load TLS certificates
+    let mut config = ServerConfig::new(NoClientAuth::new());
+    let cert_file = &mut BufReader::new(File::open("cert.pem").unwrap());
+    let key_file = &mut BufReader::new(File::open("key.pem").unwrap());
+    let cert_chain = certs(cert_file).unwrap();
+    let mut keys = pkcs8_private_keys(key_file).unwrap();
+    config.set_single_cert(cert_chain, keys.remove(0)).unwrap();
 
     HttpServer::new(move || {
         App::new()
@@ -31,7 +42,7 @@ async fn main() -> std::io::Result<()> {
             .configure(|c| configuration::user_config(c, &pool))
             .configure(|c| configuration::admin_config(c, &pool))
     })
-    .bind("127.0.0.1:8080")?
+    .bind_rustls("127.0.0.1:8080", config)?
     .run()
     .await
 }

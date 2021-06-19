@@ -118,6 +118,9 @@ elif [ "$1" == "test" ]; then
 elif [ "$1" == "doc" ]; then
     cargo doc --workspace --no-deps --document-private-items --open
 
+elif [ "$1" == "gencert" ]; then
+    openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN=localhost'
+
 else
     echo "Unkown argument combination"
     echo "Development and automation script"

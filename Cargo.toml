@@ -8,12 +8,13 @@ edition = "2018"
 middleware = { path = "middleware" }
 database-integration = { path = "database-integration" }
 
-actix-web = "3"
+actix-web = { version = "3", features = [ "rustls" ] }
 askama = { version = "0.10", features = [ "with-actix-web" ] }
 askama_actix = "0.11"
 dotenv = "0.15.0"
 env_logger = "0.8"
-rand = "0.8"
+# Unfortunately Rustls 0.19 is not yet supported by Actix
+rustls = "0.18"
 serde = "1"
 sqlx = { version = "0.4", features = [ "runtime-actix-native-tls", "postgres", "uuid", "chrono" ] }
 

@@ -131,8 +131,7 @@ where
                     SessionStateAction::Login(session_id) => {
                         // Add cookie
                         let cookie = Cookie::build("id", session_id)
-                            // FIXME: Use true when HTTPS is implemented
-                            .secure(false)
+                            .secure(true)
                             .http_only(true)
                             .same_site(SameSite::Lax)
                             .path("/")
