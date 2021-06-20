@@ -80,3 +80,8 @@ jobs:
         with:
           command: clippy
           args: --workspace -- -D warnings
+      - name: Run cargo doc test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --doc
