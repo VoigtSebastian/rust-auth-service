@@ -7,21 +7,21 @@ use std::collections::HashSet;
 use crate::error_mapping;
 
 /// This constant describes the query to select a `DbUser` by their username.
-pub const SELECT_USER: &'static str = "SELECT * FROM users WHERE username = $1;";
+pub const SELECT_USER: &str = "SELECT * FROM users WHERE username = $1;";
 
-const SELECT_USER_BY_SESSION_ID: &'static str =
+const SELECT_USER_BY_SESSION_ID: &str =
     "SELECT * FROM users WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = $1 AND expiration_date > NOW());";
 
 /// This constant describes the query to insert a new `DbUser` by their name and password hash.
 /// The registration_date that is part of the `DbUser` is set to the current time using postgres' NOW() function.
 /// The password hash comes from the access control library and contains the PHC hash.
-const INSERT_USER: &'static str =
+const INSERT_USER: &str =
     "INSERT INTO users (username, password_hash, registration_date) VALUES ($1, $2, NOW());";
 
-const INSERT_SESSION: &'static str =
+const INSERT_SESSION: &str =
     "INSERT INTO sessions (session_id, user_id, expiration_date) VALUES ($1, $2, NOW() + INTERVAL '5 minutes');";
 
-const DELETE_SESSION: &'static str = "DELETE FROM sessions WHERE session_id = $1;";
+const DELETE_SESSION: &str = "DELETE FROM sessions WHERE session_id = $1;";
 
 /// This constant describes the query to select a new [`DbCapability`] by a `user_id`.
 const SELECT_CAPABILITIES: &str = "SELECT * FROM capabilities WHERE user_id = $1;";
@@ -110,7 +110,7 @@ impl User {
             .bind(password_hash)
             .execute(connection)
             .await
-            .map_err(|e| error_mapping::user_registration_error(e, username))
+            .map_err(|_| error_mapping::user_registration_error(username))
     }
 
     /// Tries to look up a [`User`] by running the `SELECT_USER` and `SELECT_CAPABILITIES` query.
