@@ -35,6 +35,13 @@ Additionally:
 2. The service is **not meant for production**
 3. SQLx — our SQL library — does not support 1:n mapping. This might be a security issue in our User implementation, as we need two queries to access a user and their capabilities.
 
+## Build the documentation
+
+To build and open the documentation of this workspace, without building the documentation of every crate it depends on, run `./automation doc`.
+This is meant as a developer documentation, as it includes private items by using the `--document-private-items` flag.
+
+The command that is executed by running `./automation doc` is `cargo doc --workspace --no-deps --document-private-items --open`.
+
 ## CI
 
 Every time a pull-requests gets opened for this repository an automatic GitHub-Action is run that executes all tests in the cargo-workspace, including the tests that use the PostgreSQL database.
