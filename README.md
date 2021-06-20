@@ -23,6 +23,14 @@ The default values are part of the `.env` file which includes the database URI, 
 
 To access the web-interface, visit `http://localhost:8080/index.html`.
 
+### For the lazy ones
+
+1. `./automation.sh container start`
+2. `./automation.sh db up`
+3. `./automation gencert`
+4. `cargo build --workspace`
+5. `cargo run`
+
 ## Security
 
 ### Considerations
