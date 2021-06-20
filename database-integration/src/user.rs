@@ -6,28 +6,15 @@ use std::collections::HashSet;
 
 use crate::error_mapping;
 
-/// This constant describes the query to select a [`DbUser`] by their username.
-/// ```
-/// sqlx::query_as::<_, DbUser>(SELECT_USER)
-///     .bind(username)
-///     .fetch_one(connection)
-///     .await
-/// ```
+/// This constant describes the query to select a `DbUser` by their username.
 pub const SELECT_USER: &'static str = "SELECT * FROM users WHERE username = $1;";
 
 const SELECT_USER_BY_SESSION_ID: &'static str =
     "SELECT * FROM users WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = $1 AND expiration_date > NOW());";
 
-/// This constant describes the query to insert a new [`DbUser`] by their name and password hash.
-/// The registration_date that is part of the [`DbUser`] is set to the current time using postgres' NOW() function.
+/// This constant describes the query to insert a new `DbUser` by their name and password hash.
+/// The registration_date that is part of the `DbUser` is set to the current time using postgres' NOW() function.
 /// The password hash comes from the access control library and contains the PHC hash.
-/// ```
-/// sqlx::query(INSERT_USER)
-///     .bind(username)
-///     .bind(password_hash)
-///     .execute(connection)
-///     .await
-/// ```
 const INSERT_USER: &'static str =
     "INSERT INTO users (username, password_hash, registration_date) VALUES ($1, $2, NOW());";
 
@@ -37,14 +24,6 @@ const INSERT_SESSION: &'static str =
 const DELETE_SESSION: &'static str = "DELETE FROM sessions WHERE session_id = $1;";
 
 /// This constant describes the query to select a new [`DbCapability`] by a `user_id`.
-/// ```
-/// sqlx::query_as::<_, DbCapability>(SELECT_CAPABILITIES)
-///     .bind(user_id)
-///     .fetch_all(connection)
-///     .await?
-///     .into_iter()
-///     .collect()
-/// ```
 const SELECT_CAPABILITIES: &str = "SELECT * FROM capabilities WHERE user_id = $1;";
 
 /// The [`User`] struct is provided to the Middleware is fetched from the database by running [`User::look_up_user`].
@@ -73,10 +52,10 @@ impl UserTrait for User {
     }
 }
 
-/// The [`DbUser`] struct represents the users table in the database.
+/// The `DbUser` struct represents the users table in the database.
 /// It is only used to build a [`User`] by combining its information with [`DbCapability`].
 ///
-/// The query to select a [`DbUser`] is represented by the constant [`SELECT_USER`] and used in [`User::look_up_user`].
+/// The query to select a `DbUser` is represented by the constant `SELECT_USER` and used in [`User::look_up_user`].
 ///
 /// # Table structure
 /// ``` sql
@@ -96,7 +75,7 @@ struct DbUser {
 }
 
 /// The [`DbCapability`] struct represents the capability table in the database.
-/// It is only used to query the necessary information to build a [`User`] by combining it with a [`DbUser`].
+/// It is only used to query the necessary information to build a [`User`] by combining it with a `DbUser`.
 ///
 /// # Table structure
 /// ``` sql
@@ -114,7 +93,7 @@ struct DbCapability {
 }
 
 impl User {
-    /// Tries to insert a new user into the database by running the [`INSERT_USER`] query.
+    /// Tries to insert a new user into the database by running the `INSERT_USER` query.
     ///
     /// # Returns
     /// The query may fail if the connection to postgres is down or the user already exists.
@@ -134,7 +113,7 @@ impl User {
             .map_err(|e| error_mapping::user_registration_error(e, username))
     }
 
-    /// Tries to look up a [`User`] by running the [`SELECT_USER`] and [`SELECT_CAPABILITIES`] query.
+    /// Tries to look up a [`User`] by running the `SELECT_USER` and `SELECT_CAPABILITIES` query.
     ///
     /// The [`User`] struct is not a representation of what the user looks like in the database, but what the middleware needs to function.
     ///
@@ -142,7 +121,7 @@ impl User {
     /// Each query may fail if the connection to postgres is down or the user already exists.
     /// In this case a [`ServiceError::UserNotFound`] or a [`ServiceError::Default`] error is returned, depending on the queries return type.
     ///
-    /// If successful, the function return a [`User`] that combines both the [`SELECT_USER`] and [`SELECT_CAPABILITIES`] queries, by reading out the necessary data.
+    /// If successful, the function return a [`User`] that combines both the `SELECT_USER` and `SELECT_CAPABILITIES` queries, by reading out the necessary data.
     pub async fn look_up_user(
         connection: &PgPool,
         username: impl AsRef<str>,

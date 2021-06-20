@@ -80,7 +80,7 @@ where
 /// The User trait defines the operations of a User that are necessary to be handled by the middleware.
 /// # User operations
 /// The user trait forces two methods that need to be implemented.
-/// 1. The [`User::name`] method that returns a users name as `&str`.
+/// 1. The [`User::username`] method that returns a users name as `&str`.
 /// 2. The [`User::capabilities`] method that returns a users capabilities inside a `&HashSet<String>`
 ///
 /// Capabilities are just a collection of Strings that describe the operations a user is allowed to do.
@@ -109,7 +109,7 @@ fn get_argon2_ctx() -> Argon2<'static> {
 /// In the case of the AccessControl struct we use the states [`Start`], [`Authenticated`] and [`Authorized`] to ensure that operations are executed in the correct order.
 /// # Operations
 /// The AccessControl defines multiple operations stretched over multiple states.
-/// 1. **Start** provides the [`AccessControl::new`] and [`AccessControl::authenticate`] method
+/// 1. **Start** provides the [`AccessControl::new`] and [`AccessControl::authenticate_session`] method
 /// 2. **Authenticated** provides the [`AccessControl::authorize`] method
 /// 3. **Authorized** provides the [`AccessControl::get_user`] method
 ///
@@ -286,7 +286,7 @@ pub trait AccessControlState {}
 /// The initial state of the [`AccessControl`] struct when initializing it with [`AccessControl::new`].
 /// For details see: [`AccessControl`]
 pub struct Start;
-/// The [`AccessControl`] struct after a user has been successfully authenticated by reading them from the database with [`AccessControl::authenticate`].
+/// The [`AccessControl`] struct after a user has been successfully authenticated by reading them from the database with [`AccessControl::authenticate_session`].
 /// For details see: [`AccessControl`]
 pub struct Authenticated;
 /// The state of [`AccessControl`] after a user has been successfully authenticated and authorized by comparing them to the required capabilities with [`AccessControl::authorize`].
