@@ -21,7 +21,7 @@ pub const ARGON2_P_COST: u32 = 1;
 /// Fake hash used to archive constant time in the authentication function.
 ///
 /// The PHC hash is derived from an empty password.
-pub const FAKE_PHC_HASH: &'static str =
+pub const FAKE_PHC_HASH: &str =
     "$argon2id$v=19$m=15360,t=2,p=1$saltsaltsaltsalt$1hx6lvjIBIrxykf2XmEdsNUxMAsJ6FBKtP5g4R0UygY";
 
 /// Instead of pulling in the async-trait package to define async trait functions, we use this type to define our own Futures.
