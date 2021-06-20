@@ -6,14 +6,14 @@ use std::collections::HashSet;
 
 use crate::error_mapping;
 
-/// This constant describes the query to select a `DbUser` by their username.
-pub const SELECT_USER: &str = "SELECT * FROM users WHERE username = $1;";
+/// This constant describes the query to select a [`DbUser`] by their username.
+const SELECT_USER: &str = "SELECT * FROM users WHERE username = $1;";
 
 const SELECT_USER_BY_SESSION_ID: &str =
     "SELECT * FROM users WHERE user_id = (SELECT user_id FROM sessions WHERE session_id = $1 AND expiration_date > NOW());";
 
-/// This constant describes the query to insert a new `DbUser` by their name and password hash.
-/// The registration_date that is part of the `DbUser` is set to the current time using postgres' NOW() function.
+/// This constant describes the query to insert a new [`DbUser`] by their name and password hash.
+/// The registration_date that is part of the [`DbUser`] is set to the current time using postgres' NOW() function.
 /// The password hash comes from the access control library and contains the PHC hash.
 const INSERT_USER: &str =
     "INSERT INTO users (username, password_hash, registration_date) VALUES ($1, $2, NOW());";
@@ -52,10 +52,10 @@ impl UserTrait for User {
     }
 }
 
-/// The `DbUser` struct represents the users table in the database.
+/// The [`DbUser`] struct represents the users table in the database.
 /// It is only used to build a [`User`] by combining its information with [`DbCapability`].
 ///
-/// The query to select a `DbUser` is represented by the constant `SELECT_USER` and used in [`User::look_up_user`].
+/// The query to select a [`DbUser`] is represented by the constant `SELECT_USER` and used in [`User::look_up_user`].
 ///
 /// # Table structure
 /// ``` sql
@@ -75,7 +75,7 @@ struct DbUser {
 }
 
 /// The [`DbCapability`] struct represents the capability table in the database.
-/// It is only used to query the necessary information to build a [`User`] by combining it with a `DbUser`.
+/// It is only used to query the necessary information to build a [`User`] by combining it with a [`DbUser`].
 ///
 /// # Table structure
 /// ``` sql
