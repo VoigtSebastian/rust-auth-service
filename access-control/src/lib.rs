@@ -7,15 +7,15 @@ use argon2::Params;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 
 /// Memory cost of 15 MiB as per
-/// (OWASP)[https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id]
+/// [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id)
 pub const ARGON2_M_COST: u32 = 15 * 1024;
 
 /// 2 Iterations as per
-/// (OWASP)[https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id]
+/// [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id)
 pub const ARGON2_T_COST: u32 = 2;
 
 /// Degree of parallelism of 1 as per
-/// (OWASP)[https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id]
+/// [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id)
 pub const ARGON2_P_COST: u32 = 1;
 
 /// Fake hash used to archive constant time in the authentication function.
@@ -103,7 +103,7 @@ fn get_argon2_ctx() -> Argon2<'static> {
     .expect("invalid argon2 parameters")
 }
 
-/// AccessControl defines the behavior of a `Backend<impl User>` and ensures its safety at compile time.
+/// AccessControl defines the behavior of a [`Backend`] and ensures its safety at compile time.
 /// This safety is guaranteed by the implementation of the [typestate pattern](http://cliffle.com/blog/rust-typestate/).
 ///
 /// In the case of the AccessControl struct we use the states [`Start`], [`Authenticated`] and [`Authorized`] to ensure that operations are executed in the correct order.
