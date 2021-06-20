@@ -12,6 +12,9 @@ mod configuration;
 mod pages;
 mod routes;
 
+const CERT_ERROR_MESSAGE: &str = "Could not find './cert.pem'";
+const KEY_ERROR_MESSAGE: &str = "Could not find './key.pem'";
+
 /// This Service starts an HttpServer using actix-web with four routes.
 /// - A route that serves mocked public information under /information/public
 /// - A route that serves mocked user specific information under /information/user
@@ -29,8 +32,8 @@ async fn main() -> std::io::Result<()> {
 
     // Load TLS certificates
     let mut config = ServerConfig::new(NoClientAuth::new());
-    let cert_file = &mut BufReader::new(File::open("cert.pem").unwrap());
-    let key_file = &mut BufReader::new(File::open("key.pem").unwrap());
+    let cert_file = &mut BufReader::new(File::open("cert.pem").expect(CERT_ERROR_MESSAGE));
+    let key_file = &mut BufReader::new(File::open("key.pem").expect(KEY_ERROR_MESSAGE));
     let cert_chain = certs(cert_file).unwrap();
     let mut keys = pkcs8_private_keys(key_file).unwrap();
     config.set_single_cert(cert_chain, keys.remove(0)).unwrap();
