@@ -1,4 +1,4 @@
-use std::{fs::File, io::BufReader};
+use std::{env, fs::File, io::BufReader};
 
 use database_integration::utility::create_db_pool;
 
@@ -14,6 +14,17 @@ mod routes;
 
 const CERT_ERROR_MESSAGE: &str = "Could not find './cert.pem'";
 const KEY_ERROR_MESSAGE: &str = "Could not find './key.pem'";
+
+/// Builds the service address by retrieving the values of the `SERVICE_DOMAIN` and `SERVICE_PORT` environment variables.
+///
+/// This function calls **`.unwrap()`**.
+/// This is mostly to avoid situations in which the service should not run with default values.
+/// In every other situation this shouldn't be an issue, thanks to the `.env` file.
+fn build_address() -> String {
+    let domain = env::var("SERVICE_DOMAIN").expect("SERVICE_DOMAIN not set");
+    let port = env::var("SERVICE_PORT").expect("SERVICE_PORT not set");
+    format!("{}:{}", domain, port)
+}
 
 /// This Service starts an HttpServer using actix-web with four routes.
 /// - A route that serves mocked public information under /information/public
@@ -45,7 +56,7 @@ async fn main() -> std::io::Result<()> {
             .configure(|c| configuration::user_config(c, &pool))
             .configure(|c| configuration::admin_config(c, &pool))
     })
-    .bind_rustls("127.0.0.1:8080", config)?
+    .bind_rustls(build_address().as_str(), config)?
     .run()
     .await
 }
