@@ -23,6 +23,9 @@ use futures_util::future::{ok, Ready};
 use rand::RngCore;
 use time::{Duration, OffsetDateTime};
 
+/// A simple type to describe a dynamic Future to make clippy happy.
+type DynamicFutureReturn<R> = Pin<Box<dyn Future<Output = R>>>;
+
 pub struct SimpleStringMiddleware<T, U>
 where
     T: Backend<U>,
@@ -97,7 +100,7 @@ where
     type Request = ServiceRequest;
     type Response = ServiceResponse<B>;
     type Error = Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+    type Future = DynamicFutureReturn<Result<Self::Response, Self::Error>>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.service.poll_ready(cx)
@@ -199,7 +202,7 @@ where
         let mut extensions = self.req.extensions_mut();
         let item = extensions
             .get_mut::<SessionStateItem<B, U>>()
-            .ok_or(ErrorInternalServerError("extractor failed"))?;
+            .ok_or_else(|| ErrorInternalServerError("extractor failed"))?;
 
         // https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html#user-ids
         let username = username.as_ref().to_lowercase();
@@ -249,12 +252,12 @@ where
         let mut extensions = self.req.extensions_mut();
         let item = extensions
             .get_mut::<SessionStateItem<B, U>>()
-            .ok_or(ErrorInternalServerError("extractor failed"))?;
+            .ok_or_else(|| ErrorInternalServerError("extractor failed"))?;
 
         AccessControl::new(item.backend.clone())
             .register(username, password_hash)
             .await
-            .map_err(|e| ErrorBadRequest(e))
+            .map_err(ErrorBadRequest)
     }
 }
 
@@ -302,11 +305,11 @@ where
             };
 
             // Redirect to /login if "id" cookie is not set or we can't find the extensions.
-            let cookie = req.cookie("id").ok_or(login_redirect())?;
+            let cookie = req.cookie("id").ok_or_else(login_redirect)?;
             let mut extensions = req.extensions_mut();
             let item = extensions
                 .get_mut::<SessionStateItem<B, U>>()
-                .ok_or(login_redirect())?;
+                .ok_or_else(login_redirect)?;
 
             // Authenticate and authorize with the session ID
             let user = AccessControl::new(item.backend.clone())
