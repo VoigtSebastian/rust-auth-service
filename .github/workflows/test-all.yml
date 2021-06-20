@@ -56,9 +56,13 @@ jobs:
   lints:
     name: Lints
     runs-on: ubuntu-latest
+    container: ubuntu:latest
     steps:
       - name: Install necessary packages
-        run: apt update && apt install -y build-essential
+        run: |
+          export DEBIAN_FRONTEND="noninteractive"
+          export TZ="Europe/London"
+          apt-get update && apt-get install -y wget curl build-essential libssl1.1 libssl-dev postgresql-client openssl pkg-config
       - name: Checkout sources
         uses: actions/checkout@v2
 
