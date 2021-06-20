@@ -24,6 +24,13 @@ pub const ARGON2_P_COST: u32 = 1;
 pub const FAKE_PHC_HASH: &'static str =
     "$argon2id$v=19$m=15360,t=2,p=1$saltsaltsaltsalt$1hx6lvjIBIrxykf2XmEdsNUxMAsJ6FBKtP5g4R0UygY";
 
+/// Instead of pulling in the async-trait package to define async trait functions, we use this type to define our own Futures.
+pub type DynamicFutureReturn<R> = Pin<Box<dyn Future<Output = R>>>;
+/// Instead of pulling in the async-trait package to define async trait functions, we use this type to define our own Futures.
+pub type FutureResult<R> = DynamicFutureReturn<Result<R, Box<dyn std::error::Error>>>;
+/// Instead of pulling in the async-trait package to define async trait functions, we use this type to define our own Futures.
+pub type FutureOption<O> = DynamicFutureReturn<Option<O>>;
+
 /// Access-Control errors for authentication and authorization
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -59,22 +66,15 @@ pub trait Backend<U>: Clone
 where
     U: User,
 {
-    fn get_user(&self, username: impl AsRef<str>) -> Pin<Box<dyn Future<Output = Option<U>>>>;
-    fn get_user_from_session(
-        &self,
-        session_id: impl AsRef<str>,
-    ) -> Pin<Box<dyn Future<Output = Option<U>>>>;
+    fn get_user(&self, username: impl AsRef<str>) -> FutureOption<U>;
+    fn get_user_from_session(&self, session_id: impl AsRef<str>) -> FutureOption<U>;
     fn register_user(
         &self,
         username: impl AsRef<str>,
         password_hash: impl AsRef<str>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error>>>>>;
-    fn store_session(
-        &self,
-        user: &U,
-        session_id: impl AsRef<str>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error>>>>>;
-    fn remove_session(&self, session_id: impl AsRef<str>) -> Pin<Box<dyn Future<Output = ()>>>;
+    ) -> FutureResult<()>;
+    fn store_session(&self, user: &U, session_id: impl AsRef<str>) -> FutureResult<()>;
+    fn remove_session(&self, session_id: impl AsRef<str>) -> DynamicFutureReturn<()>;
 }
 
 /// The User trait defines the operations of a User that are necessary to be handled by the middleware.

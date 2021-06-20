@@ -1,8 +1,6 @@
 use std::error;
-use std::future::Future;
-use std::pin::Pin;
 
-use access_control::Backend;
+use access_control::{Backend, DynamicFutureReturn, FutureOption, FutureResult};
 use sqlx::PgPool;
 
 mod error_mapping;
@@ -15,20 +13,14 @@ pub struct PostgreSqlBackend {
 }
 
 impl Backend<user::User> for PostgreSqlBackend {
-    fn get_user(
-        &self,
-        username: impl AsRef<str>,
-    ) -> Pin<Box<dyn Future<Output = Option<user::User>>>> {
+    fn get_user(&self, username: impl AsRef<str>) -> FutureOption<user::User> {
         let db = self.db.clone();
         let username = username.as_ref().to_string();
 
         Box::pin(async move { user::User::look_up_user(&db, &username).await.ok() })
     }
 
-    fn get_user_from_session(
-        &self,
-        session_id: impl AsRef<str>,
-    ) -> Pin<Box<dyn Future<Output = Option<user::User>>>> {
+    fn get_user_from_session(&self, session_id: impl AsRef<str>) -> FutureOption<user::User> {
         let db = self.db.clone();
         let session_id = session_id.as_ref().to_string();
 
@@ -43,7 +35,7 @@ impl Backend<user::User> for PostgreSqlBackend {
         &self,
         username: impl AsRef<str>,
         password_hash: impl AsRef<str>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error>>>>> {
+    ) -> FutureResult<()> {
         let db = self.db.clone();
         let username = username.as_ref().to_string();
         let password_hash = password_hash.as_ref().to_string();
@@ -56,11 +48,7 @@ impl Backend<user::User> for PostgreSqlBackend {
         })
     }
 
-    fn store_session(
-        &self,
-        user: &user::User,
-        session_id: impl AsRef<str>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn error::Error>>>>> {
+    fn store_session(&self, user: &user::User, session_id: impl AsRef<str>) -> FutureResult<()> {
         let db = self.db.clone();
         let user = user.clone();
         let session_id = session_id.as_ref().to_string();
@@ -72,7 +60,7 @@ impl Backend<user::User> for PostgreSqlBackend {
         })
     }
 
-    fn remove_session(&self, session_id: impl AsRef<str>) -> Pin<Box<dyn Future<Output = ()>>> {
+    fn remove_session(&self, session_id: impl AsRef<str>) -> DynamicFutureReturn<()> {
         let db = self.db.clone();
         let session_id = session_id.as_ref().to_string();
 
