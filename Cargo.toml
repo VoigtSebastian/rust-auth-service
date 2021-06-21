@@ -19,7 +19,7 @@ env_logger = "0.8"
 # Unfortunately Rustls 0.19 is not yet supported by Actix
 rustls = "0.18"
 serde = "1"
-sqlx = { version = "0.5", features = [ "runtime-actix-native-tls", "postgres", "uuid", "chrono" ] }
+sqlx = { version = "0.4", features = [ "runtime-actix-native-tls", "postgres", "uuid", "chrono" ] }
 
 [workspace]
 members = [
