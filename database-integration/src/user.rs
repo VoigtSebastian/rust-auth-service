@@ -1,7 +1,6 @@
 use access_control::User as UserTrait;
 use chrono::{DateTime, Utc};
 use service_errors::ServiceError;
-use sqlx::postgres::PgDone;
 use sqlx::{FromRow, PgPool};
 use std::cmp::PartialEq;
 use std::collections::HashSet;
@@ -196,27 +195,30 @@ impl User {
     /// Tries to insert a new session into the database.
     ///# Returns
     /// This query may fail if the selected `session_id` is already in the sessions table.
-    /// If successful, the query returns `PgDone`.
+    /// If successful, the query returns `()`.
     pub async fn store_session(
         connection: &PgPool,
         user: &User,
         session_id: &str,
-    ) -> Result<PgDone, sqlx::Error> {
+    ) -> Result<(), sqlx::Error> {
         sqlx::query(INSERT_SESSION)
             .bind(session_id)
             .bind(user.user_id)
             .execute(connection)
-            .await
+            .await?;
+        Ok(())
     }
 
     /// Tries to delete a session by its `session_id`.
     ///
     /// This query may fail if the `session_id` does not exist.
-    /// If successful, the function returns `PgDone`.
+    /// If successful, the function returns `()`.
+    pub async fn remove_session(connection: &PgPool, session_id: &str) -> Result<(), sqlx::Error> {
         sqlx::query(DELETE_SESSION)
             .bind(session_id)
             .execute(connection)
-            .await
+            .await?;
+        Ok(())
     }
 }
 
