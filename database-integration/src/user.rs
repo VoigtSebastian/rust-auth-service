@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use service_errors::ServiceError;
 use sqlx::postgres::PgDone;
 use sqlx::{FromRow, PgPool};
+use std::cmp::PartialEq;
 use std::collections::HashSet;
 
 use crate::error_mapping;
@@ -30,7 +31,7 @@ const SELECT_CAPABILITIES: &str = "SELECT * FROM capabilities WHERE user_id = $1
 /// The [`User`] struct is provided to the Middleware is fetched from the database by running [`User::look_up_user`].
 ///
 /// The struct contains only the necessary information to the middleware and skips internal data like the password hash.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct User {
     user_id: i32,
     pub username: String,
@@ -251,5 +252,33 @@ mod tests {
         let pool = create_db_pool().await.unwrap();
 
         assert!(User::look_up_user(&pool, &username).await.is_err());
+    }
+
+    #[ignore = "Needs database to run"]
+    #[actix_rt::test]
+    /// Tries to look up a user that does not exist.
+    async fn insert_lookup_delete_session() {
+        let username = format!("{}_session_test", Utc::now()).replace(" ", "");
+        let password_hash = format!("{}", Utc::now());
+        let pool = create_db_pool().await.unwrap();
+        let session_id = format!("{}_session_id", Utc::now()).replace(" ", "");
+
+        User::register_user(&pool, &username, &password_hash)
+            .await
+            .unwrap();
+        let user = User::look_up_user(&pool, &username).await.unwrap();
+
+        User::store_session(&pool, &user, session_id.as_str())
+            .await
+            .unwrap();
+
+        let retrieved_user = User::look_up_user_from_session(&pool, session_id.as_str())
+            .await
+            .unwrap();
+        assert_eq!(user, retrieved_user);
+
+        User::remove_session(&pool, session_id.as_str())
+            .await
+            .unwrap();
     }
 }
