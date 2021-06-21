@@ -5,8 +5,6 @@ use sqlx::{FromRow, PgPool};
 use std::cmp::PartialEq;
 use std::collections::HashSet;
 
-use crate::error_mapping;
-
 /// This constant describes the query to select a [`DbUser`] by their username.
 const SELECT_USER: &str = "SELECT * FROM users WHERE username = $1;";
 
@@ -115,7 +113,7 @@ impl User {
             .bind(password_hash)
             .execute(connection)
             .await
-            .map_err(|_| error_mapping::user_registration_error(username))
+            .map_err(|_| Self::user_registration_error(username))
     }
 
     /// Tries to look up a [`User`] by running the `SELECT_USER` and `SELECT_CAPABILITIES` query.
@@ -137,12 +135,12 @@ impl User {
             .bind(username)
             .fetch_one(connection)
             .await
-            .map_err(|e| error_mapping::user_lookup_error(e, username))?;
+            .map_err(|e| Self::user_lookup_error(e, username))?;
         let user_caps: HashSet<String> = sqlx::query_as::<_, DbCapability>(SELECT_CAPABILITIES)
             .bind(dbuser.user_id)
             .fetch_all(connection)
             .await
-            .map_err(|e| error_mapping::user_lookup_error(e, username))?
+            .map_err(|e| Self::user_lookup_error(e, username))?
             .into_iter()
             .map(|c: DbCapability| c.label)
             .collect();
@@ -173,12 +171,12 @@ impl User {
             .bind(session_id)
             .fetch_one(connection)
             .await
-            .map_err(|e| error_mapping::user_lookup_error(e, session_id))?;
+            .map_err(|e| Self::user_lookup_error(e, session_id))?;
         let user_caps: HashSet<String> = sqlx::query_as::<_, DbCapability>(SELECT_CAPABILITIES)
             .bind(dbuser.user_id)
             .fetch_all(connection)
             .await
-            .map_err(|e| error_mapping::user_lookup_error(e, session_id))?
+            .map_err(|e| Self::user_lookup_error(e, session_id))?
             .into_iter()
             .map(|c: DbCapability| c.label)
             .collect();
@@ -219,6 +217,21 @@ impl User {
             .execute(connection)
             .await?;
         Ok(())
+    }
+
+    fn user_lookup_error(error: sqlx::Error, username: &str) -> ServiceError {
+        match error {
+            sqlx::Error::RowNotFound => ServiceError::UserNotFound {
+                username: username.into(),
+            },
+            _ => ServiceError::Default,
+        }
+    }
+
+    fn user_registration_error(username: &str) -> ServiceError {
+        ServiceError::UserRegistrationFailed {
+            username: username.into(),
+        }
     }
 }
 

@@ -3,7 +3,6 @@ use std::error;
 use access_control::{Backend, FutureOption, FutureResult};
 use sqlx::PgPool;
 
-mod error_mapping;
 pub mod user;
 pub mod utility;
 
