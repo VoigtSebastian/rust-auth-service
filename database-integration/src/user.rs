@@ -20,12 +20,16 @@ const SELECT_USER_BY_SESSION_ID: &str =
 const INSERT_USER: &str =
     "INSERT INTO users (username, password_hash, registration_date) VALUES ($1, $2, NOW());";
 
+/// The [`INSERT_SESSION`] constant describes the query to insert a session by providing a `session_id` and `user_id`.
+///
+/// The sessions expiration date is set to the current time plus 5 minutes.
 const INSERT_SESSION: &str =
     "INSERT INTO sessions (session_id, user_id, expiration_date) VALUES ($1, $2, NOW() + INTERVAL '5 minutes');";
 
+/// The [`DELETE_SESSION`] constant describes the query to delete a session by its `session_id`.
 const DELETE_SESSION: &str = "DELETE FROM sessions WHERE session_id = $1;";
 
-/// This constant describes the query to select a new [`DbCapability`] by a `user_id`.
+/// The [`SELECT_CAPABILITIES`] constant describes the query to select a new [`DbCapability`] by `user_id`.
 const SELECT_CAPABILITIES: &str = "SELECT * FROM capabilities WHERE user_id = $1;";
 
 /// The [`User`] struct is provided to the Middleware is fetched from the database by running [`User::look_up_user`].
