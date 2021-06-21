@@ -103,7 +103,7 @@ impl User {
     /// In this case a [`ServiceError::UserRegistrationFailed`] is returned.
     ///
     /// If successful, the functions returns [`sqlx::postgres::PgDone`].
-    pub async fn register_user(
+    pub(crate) async fn register_user(
         connection: &PgPool,
         username: &str,
         password_hash: &str,
@@ -126,7 +126,7 @@ impl User {
     /// In this case a [`ServiceError::UserNotFound`] or a [`ServiceError::Default`] error is returned, depending on the queries return type.
     ///
     /// If successful, the function return a [`User`] that combines both the `SELECT_USER` and `SELECT_CAPABILITIES` queries, by reading out the necessary data.
-    pub async fn look_up_user(
+    pub(crate) async fn look_up_user(
         connection: &PgPool,
         username: impl AsRef<str>,
     ) -> Result<User, ServiceError> {
@@ -164,7 +164,7 @@ impl User {
     /// An error occurs then the user or their capabilities cannot be found in the database.
     ///
     /// If successful, the function return a [`User`] struct that combines the necessary data from two requests.
-    pub async fn look_up_user_from_session(
+    pub(crate) async fn look_up_user_from_session(
         connection: &PgPool,
         session_id: &str,
     ) -> Result<User, ServiceError> {
@@ -205,7 +205,7 @@ impl User {
     ///   CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(user_id)
     /// );
     /// ```
-    pub async fn store_session(
+    pub(crate) async fn store_session(
         connection: &PgPool,
         user: &User,
         session_id: &str,
@@ -222,7 +222,10 @@ impl User {
     ///
     /// This query may fail if the `session_id` does not exist.
     /// If successful, the function returns `()`.
-    pub async fn remove_session(connection: &PgPool, session_id: &str) -> Result<(), sqlx::Error> {
+    pub(crate) async fn remove_session(
+        connection: &PgPool,
+        session_id: &str,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query(DELETE_SESSION)
             .bind(session_id)
             .execute(connection)
