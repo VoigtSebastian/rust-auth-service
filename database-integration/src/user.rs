@@ -231,7 +231,7 @@ mod tests {
     #[actix_rt::test]
     /// Tries to register and look up a user by running [`User::register_user`] and [`User::look_up_user`].
     async fn connect_register_lookup() {
-        let username = format!("{}@test.de", Utc::now()).replace(" ", "_");
+        let username = format!("{}_register_lookup", Utc::now()).replace(" ", "_");
         let password_hash = format!("{}", Utc::now());
 
         let pool = create_db_pool().await.unwrap();
@@ -249,7 +249,7 @@ mod tests {
     #[actix_rt::test]
     /// Makes sure a user cannot register itself twice.
     async fn register_twice() {
-        let username = format!("{}@test.de", Utc::now()).replace(" ", "");
+        let username = format!("{}_register_twice", Utc::now()).replace(" ", "");
         let password_hash = format!("{}", Utc::now());
 
         let pool = create_db_pool().await.unwrap();
@@ -266,8 +266,7 @@ mod tests {
     #[actix_rt::test]
     /// Tries to look up a user that does not exist.
     async fn lookup_non_existing_user() {
-        let username = "000000000000000000".to_string();
-
+        let username: String = (0..20).map(|_| "no").collect();
         let pool = create_db_pool().await.unwrap();
 
         assert!(User::look_up_user(&pool, &username).await.is_err());
@@ -294,6 +293,7 @@ mod tests {
         let retrieved_user = User::look_up_user_from_session(&pool, session_id.as_str())
             .await
             .unwrap();
+
         assert_eq!(user, retrieved_user);
 
         User::remove_session(&pool, session_id.as_str())
