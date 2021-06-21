@@ -107,13 +107,14 @@ impl User {
         connection: &PgPool,
         username: &str,
         password_hash: &str,
-    ) -> Result<sqlx::postgres::PgDone, ServiceError> {
+    ) -> Result<(), ServiceError> {
         sqlx::query(INSERT_USER)
             .bind(username)
             .bind(password_hash)
             .execute(connection)
             .await
-            .map_err(|_| Self::user_registration_error(username))
+            .map_err(|_| Self::user_registration_error(username))?;
+        Ok(())
     }
 
     /// Tries to look up a [`User`] by running the `SELECT_USER` and `SELECT_CAPABILITIES` query.
