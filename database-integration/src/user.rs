@@ -1,6 +1,7 @@
 use access_control::User as UserTrait;
 use chrono::{DateTime, Utc};
 use service_errors::ServiceError;
+use sqlx::postgres::PgDone;
 use sqlx::{FromRow, PgPool};
 use std::collections::HashSet;
 
@@ -182,22 +183,22 @@ impl User {
         connection: &PgPool,
         user: &User,
         session_id: &str,
-    ) -> Result<(), ServiceError> {
+    ) -> Result<PgDone, sqlx::Error> {
         sqlx::query(INSERT_SESSION)
             .bind(session_id)
             .bind(user.user_id)
             .execute(connection)
             .await
-            .unwrap();
-        Ok(())
     }
 
-    pub async fn remove_session(connection: &PgPool, session_id: &str) {
+    pub async fn remove_session(
+        connection: &PgPool,
+        session_id: &str,
+    ) -> Result<PgDone, sqlx::Error> {
         sqlx::query(DELETE_SESSION)
             .bind(session_id)
             .execute(connection)
             .await
-            .expect("database failed");
     }
 }
 

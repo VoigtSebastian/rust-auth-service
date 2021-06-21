@@ -1,6 +1,6 @@
 use std::error;
 
-use access_control::{Backend, DynamicFutureReturn, FutureOption, FutureResult};
+use access_control::{Backend, FutureOption, FutureResult};
 use sqlx::PgPool;
 
 mod error_mapping;
@@ -56,14 +56,20 @@ impl Backend<user::User> for PostgreSqlBackend {
         Box::pin(async move {
             user::User::store_session(&db, &user, &session_id)
                 .await
-                .map_err(|e| Box::new(e) as Box<dyn error::Error>)
+                .map_err(|e| Box::new(e) as Box<dyn error::Error>)?;
+            Ok(())
         })
     }
 
-    fn remove_session(&self, session_id: impl AsRef<str>) -> DynamicFutureReturn<()> {
+    fn remove_session(&self, session_id: impl AsRef<str>) -> FutureResult<()> {
         let db = self.db.clone();
         let session_id = session_id.as_ref().to_string();
 
-        Box::pin(async move { user::User::remove_session(&db, &session_id).await })
+        Box::pin(async move {
+            user::User::remove_session(&db, &session_id)
+                .await
+                .map_err(|e| Box::new(e) as Box<dyn error::Error>)?;
+            Ok(())
+        })
     }
 }

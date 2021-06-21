@@ -144,7 +144,7 @@ where
                     SessionStateAction::Logout => {
                         if let Some(mut cookie) = res.request().cookie("id") {
                             // Remove database session
-                            backend.remove_session(cookie.value()).await;
+                            let _ = backend.remove_session(cookie.value()).await;
                             // Delete the cookie
                             cookie.set_value("");
                             cookie.set_max_age(Duration::zero());

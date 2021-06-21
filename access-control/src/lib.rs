@@ -74,7 +74,7 @@ where
         password_hash: impl AsRef<str>,
     ) -> FutureResult<()>;
     fn store_session(&self, user: &U, session_id: impl AsRef<str>) -> FutureResult<()>;
-    fn remove_session(&self, session_id: impl AsRef<str>) -> DynamicFutureReturn<()>;
+    fn remove_session(&self, session_id: impl AsRef<str>) -> FutureResult<()>;
 }
 
 /// The User trait defines the operations of a User that are necessary to be handled by the middleware.

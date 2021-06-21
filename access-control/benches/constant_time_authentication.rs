@@ -1,5 +1,5 @@
 //! Test that the authentication functionality is roughtly in constant time to prevent user enumeration
-use access_control::{AccessControl, Backend, User};
+use access_control::{AccessControl, Backend, FutureOption, FutureResult, User};
 
 use criterion::async_executor::FuturesExecutor;
 use criterion::black_box;
@@ -29,17 +29,11 @@ impl User for TestUser {
 struct TestBackend;
 
 impl Backend<TestUser> for TestBackend {
-    fn get_user(
-        &self,
-        _username: impl AsRef<str>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Option<TestUser>>>> {
+    fn get_user(&self, _username: impl AsRef<str>) -> FutureOption<TestUser> {
         Box::pin(ready(Some(TestUser)))
     }
 
-    fn get_user_from_session(
-        &self,
-        _session_id: impl AsRef<str>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Option<TestUser>>>> {
+    fn get_user_from_session(&self, _session_id: impl AsRef<str>) -> FutureOption<TestUser> {
         unimplemented!()
     }
 
@@ -47,24 +41,15 @@ impl Backend<TestUser> for TestBackend {
         &self,
         _username: impl AsRef<str>,
         _password_hash: impl AsRef<str>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Box<dyn std::error::Error>>>>>
-    {
+    ) -> FutureResult<()> {
         unimplemented!()
     }
 
-    fn store_session(
-        &self,
-        _user: &TestUser,
-        _session_id: impl AsRef<str>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Box<dyn std::error::Error>>>>>
-    {
+    fn store_session(&self, _user: &TestUser, _session_id: impl AsRef<str>) -> FutureResult<()> {
         unimplemented!()
     }
 
-    fn remove_session(
-        &self,
-        _session_id: impl AsRef<str>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()>>> {
+    fn remove_session(&self, _session_id: impl AsRef<str>) -> FutureResult<()> {
         unimplemented!()
     }
 }
