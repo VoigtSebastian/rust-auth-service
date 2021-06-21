@@ -100,7 +100,7 @@ struct DbCapability {
 impl User {
     /// Tries to insert a new user into the database by running the `INSERT_USER` query.
     ///
-    /// # Returns
+    ///
     /// The query may fail if the connection to postgres is down or the user already exists.
     /// In this case a [`ServiceError::UserRegistrationFailed`] is returned.
     ///
@@ -122,7 +122,7 @@ impl User {
     ///
     /// The [`User`] struct is not a representation of what the user looks like in the database, but what the middleware needs to function.
     ///
-    /// # Returns
+    ///
     /// Each query may fail if the connection to postgres is down or the user already exists.
     /// In this case a [`ServiceError::UserNotFound`] or a [`ServiceError::Default`] error is returned, depending on the queries return type.
     ///
@@ -160,7 +160,7 @@ impl User {
     ///
     /// The [`User`] struct is not a representation of what the user looks like in the database, but what the middleware needs to function.
     ///
-    /// # Returns
+    ///
     /// On failure, the function returns a [`ServiceError`].
     /// An error occurs then the user or their capabilities cannot be found in the database.
     ///
@@ -193,7 +193,7 @@ impl User {
     }
 
     /// Tries to insert a new session into the database.
-    ///# Returns
+    ///
     /// This query may fail if the selected `session_id` is already in the sessions table.
     /// If successful, the query returns `()`.
     pub async fn store_session(
