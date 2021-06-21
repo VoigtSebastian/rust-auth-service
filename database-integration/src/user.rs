@@ -194,6 +194,16 @@ impl User {
     ///
     /// This query may fail if the selected `session_id` is already in the sessions table.
     /// If successful, the query returns `()`.
+    ///
+    /// A session has the following format PostgreSql:
+    /// ```sql
+    /// TABLE sessions (
+    ///   session_id TEXT PRIMARY KEY,
+    ///   user_id SERIAL,
+    ///   expiration_date TIMESTAMPTZ NOT NULL,
+    ///   CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(user_id)
+    /// );
+    /// ```
     pub async fn store_session(
         connection: &PgPool,
         user: &User,
@@ -219,6 +229,10 @@ impl User {
         Ok(())
     }
 
+    /// Map a [`sqlx::Error`] to a [`ServiceError`] when a user lookup fails.
+    ///
+    /// As a default, [`ServiceError::Default`] is returned.
+    /// If the [`sqlx::Error`] is [`sqlx::Error::RowNotFound`], [`ServiceError::UserNotFound`] is returned.
     fn user_lookup_error(error: sqlx::Error, username: &str) -> ServiceError {
         match error {
             sqlx::Error::RowNotFound => ServiceError::UserNotFound {
@@ -228,6 +242,9 @@ impl User {
         }
     }
 
+    /// Map a [`sqlx::Error`] to a [`ServiceError`] when a user lookup fails.
+    ///
+    /// Currently, only [`ServiceError::UserRegistrationFailed`] is returned.
     fn user_registration_error(username: &str) -> ServiceError {
         ServiceError::UserRegistrationFailed {
             username: username.into(),
@@ -287,7 +304,7 @@ mod tests {
 
     #[ignore = "Needs database to run"]
     #[actix_rt::test]
-    /// Tries to look up a user that does not exist.
+    /// Tries to insert, lookup and delete a session from the database.
     async fn insert_lookup_delete_session() {
         let username = format!("{}_session_test", Utc::now()).replace(" ", "");
         let password_hash = format!("{}", Utc::now());

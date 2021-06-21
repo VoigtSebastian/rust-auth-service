@@ -1,10 +1,25 @@
-use std::error;
+//! The database-integration crate implements the database functionality of the example application.
+//!
+//! Part of this implementation is the [`PostgreSqlBackend`] which implements the [`Backend`] trait.
+//! This provides access to a `PostgreSql` database in the middleware.
+//!
+//! The [`Backend`] trait is designed to take in an implementation of the [`access_control::User`] trait, when being implemented.
+//! The [`access_control::User`] for the [`PostgreSqlBackend`] is provided by [`user::User`].
+//!
+//! Additionally, the [`utility`] module provides functions to interact with the `PostgreSql` database in a more general fashion.
+//! Currently there is just the [`utility::create_db_pool`] function which is used to create a database pool.
+//! This function is currently used in most tests in the [`user`] modules as well as in the main function.
+
+/// Implementation of the database user, which the `PostgreSqlBackend` uses.
+///
+/// This includes all of the necessary requests to the PostgreSql database to handle users and their sessions.
+pub mod user;
+/// Utility functions used to work with the PostgreSql database.
+pub mod utility;
 
 use access_control::{Backend, FutureOption, FutureResult};
 use sqlx::PgPool;
-
-pub mod user;
-pub mod utility;
+use std::error;
 
 #[derive(Debug, Clone)]
 pub struct PostgreSqlBackend {
