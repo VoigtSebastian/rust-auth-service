@@ -157,6 +157,15 @@ impl User {
         })
     }
 
+    /// Tries to retrieve a [`User`] by `session_id`.
+    ///
+    /// The [`User`] struct is not a representation of what the user looks like in the database, but what the middleware needs to function.
+    ///
+    /// # Returns
+    /// On failure, the function returns a [`ServiceError`].
+    /// An error occurs then the user or their capabilities cannot be found in the database.
+    ///
+    /// If successful, the function return a [`User`] struct that combines the necessary data from two requests.
     pub async fn look_up_user_from_session(
         connection: &PgPool,
         session_id: &str,
@@ -184,6 +193,10 @@ impl User {
         })
     }
 
+    /// Tries to insert a new session into the database.
+    ///# Returns
+    /// This query may fail if the selected `session_id` is already in the sessions table.
+    /// If successful, the query returns `PgDone`.
     pub async fn store_session(
         connection: &PgPool,
         user: &User,
@@ -196,10 +209,10 @@ impl User {
             .await
     }
 
-    pub async fn remove_session(
-        connection: &PgPool,
-        session_id: &str,
-    ) -> Result<PgDone, sqlx::Error> {
+    /// Tries to delete a session by its `session_id`.
+    ///
+    /// This query may fail if the `session_id` does not exist.
+    /// If successful, the function returns `PgDone`.
         sqlx::query(DELETE_SESSION)
             .bind(session_id)
             .execute(connection)
