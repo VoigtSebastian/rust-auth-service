@@ -23,7 +23,7 @@ impl fmt::Display for Capabilities {
 }
 
 pub fn website(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
-    let backend = PostgreSqlBackend { db: pool.clone() };
+    let backend = PostgreSqlBackend::new(pool.clone());
 
     // Register
     cfg.service(
@@ -60,7 +60,7 @@ pub fn user_config(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
     cfg.service(
         resource("/information/user")
             .wrap(RustAuthMiddleware::new(
-                PostgreSqlBackend { db: pool.clone() },
+                PostgreSqlBackend::new(pool.clone()),
                 [Capabilities::UserRead]
                     .iter()
                     .map(|c| c.to_string())
@@ -74,7 +74,7 @@ pub fn admin_config(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
     cfg.service(
         resource("/information/admin")
             .wrap(RustAuthMiddleware::new(
-                PostgreSqlBackend { db: pool.clone() },
+                PostgreSqlBackend::new(pool.clone()),
                 [Capabilities::AdminRead]
                     .iter()
                     .map(|c| c.to_string())

@@ -26,6 +26,12 @@ pub struct PostgreSqlBackend {
     pub db: PgPool,
 }
 
+impl PostgreSqlBackend {
+    pub fn new(db: PgPool) -> PostgreSqlBackend {
+        PostgreSqlBackend { db: db }
+    }
+}
+
 impl Backend<user::User> for PostgreSqlBackend {
     fn get_user(&self, username: impl AsRef<str>) -> FutureOption<user::User> {
         let db = self.db.clone();
