@@ -26,7 +26,7 @@ use time::{Duration, OffsetDateTime};
 /// A simple type to describe a dynamic Future to make clippy happy.
 type DynamicFutureReturn<R> = Pin<Box<dyn Future<Output = R>>>;
 
-pub struct SimpleStringMiddleware<T, U>
+pub struct RustAuthMiddleware<T, U>
 where
     T: Backend<U>,
     U: UserTrait,
@@ -36,7 +36,7 @@ where
     phantom: PhantomData<U>,
 }
 
-impl<T, U> SimpleStringMiddleware<T, U>
+impl<T, U> RustAuthMiddleware<T, U>
 where
     T: Backend<U>,
     U: UserTrait,
@@ -50,7 +50,7 @@ where
     }
 }
 
-impl<S, B, T, U> Transform<S> for SimpleStringMiddleware<T, U>
+impl<S, B, T, U> Transform<S> for RustAuthMiddleware<T, U>
 where
     S: Service<Request = ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,

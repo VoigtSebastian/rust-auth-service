@@ -2,7 +2,7 @@ use std::{collections::HashSet, fmt};
 
 use crate::routes;
 use database_integration::PostgreSqlBackend;
-use middleware::SimpleStringMiddleware;
+use middleware::RustAuthMiddleware;
 
 use actix_web::{
     web,
@@ -28,7 +28,7 @@ pub fn website(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
     // Register
     cfg.service(
         resource("/register")
-            .wrap(SimpleStringMiddleware::new(backend.clone(), HashSet::new()))
+            .wrap(RustAuthMiddleware::new(backend.clone(), HashSet::new()))
             .route(web::get().to(routes::register_page))
             .route(web::post().to(routes::do_register)),
     );
@@ -36,7 +36,7 @@ pub fn website(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
     // Login
     cfg.service(
         resource("/login")
-            .wrap(SimpleStringMiddleware::new(backend.clone(), HashSet::new()))
+            .wrap(RustAuthMiddleware::new(backend.clone(), HashSet::new()))
             .route(web::get().to(routes::login_page))
             .route(web::post().to(routes::do_login)),
     );
@@ -44,14 +44,14 @@ pub fn website(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
     // Logout
     cfg.service(
         resource("/logout")
-            .wrap(SimpleStringMiddleware::new(backend.clone(), HashSet::new()))
+            .wrap(RustAuthMiddleware::new(backend.clone(), HashSet::new()))
             .route(web::post().to(routes::do_logout)),
     );
 
     // Status
     cfg.service(
         resource("/")
-            .wrap(SimpleStringMiddleware::new(backend, HashSet::new()))
+            .wrap(RustAuthMiddleware::new(backend, HashSet::new()))
             .route(web::get().to(routes::status_page)),
     );
 }
@@ -59,7 +59,7 @@ pub fn website(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
 pub fn user_config(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
     cfg.service(
         resource("/information/user")
-            .wrap(SimpleStringMiddleware::new(
+            .wrap(RustAuthMiddleware::new(
                 PostgreSqlBackend { db: pool.clone() },
                 [Capabilities::UserRead]
                     .iter()
@@ -73,7 +73,7 @@ pub fn user_config(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
 pub fn admin_config(cfg: &mut web::ServiceConfig, pool: &Pool<Postgres>) {
     cfg.service(
         resource("/information/admin")
-            .wrap(SimpleStringMiddleware::new(
+            .wrap(RustAuthMiddleware::new(
                 PostgreSqlBackend { db: pool.clone() },
                 [Capabilities::AdminRead]
                     .iter()
