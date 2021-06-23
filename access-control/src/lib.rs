@@ -1,10 +1,9 @@
-use std::collections::HashSet;
-use std::future::Future;
-use std::pin::Pin;
-
 use argon2::password_hash::SaltString;
 use argon2::Params;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use std::collections::HashSet;
+use std::future::Future;
+use std::pin::Pin;
 
 /// Memory cost of 15 MiB as per
 /// [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id)
@@ -25,10 +24,16 @@ pub const FAKE_PHC_HASH: &str =
     "$argon2id$v=19$m=15360,t=2,p=1$saltsaltsaltsalt$1hx6lvjIBIrxykf2XmEdsNUxMAsJ6FBKtP5g4R0UygY";
 
 /// Instead of pulling in the async-trait package to define async trait functions, we use this type to define our own Futures.
+///
+/// Type representing: `Pin<Box<dyn Future<Output = R>>>`
 pub type DynamicFutureReturn<R> = Pin<Box<dyn Future<Output = R>>>;
 /// Instead of pulling in the async-trait package to define async trait functions, we use this type to define our own Futures.
+///
+/// Type representing: `Pin<Box<dyn Future<Output = Result<R, Box<dyn std::error::Error>>>>>>`
 pub type FutureResult<R> = DynamicFutureReturn<Result<R, Box<dyn std::error::Error>>>;
 /// Instead of pulling in the async-trait package to define async trait functions, we use this type to define our own Futures.
+///
+/// Type representing: `Pin<Box<dyn Future<Output = Option<O>>>>`
 pub type FutureOption<O> = DynamicFutureReturn<Option<O>>;
 
 /// Access-Control errors for authentication and authorization
@@ -66,14 +71,19 @@ pub trait Backend<U>: Clone
 where
     U: User,
 {
+    /// Defines a method that should retrieve a user by name from the database.
     fn get_user(&self, username: impl AsRef<str>) -> FutureOption<U>;
+    /// Defines a method that should retrieve a user by session id from the database.
     fn get_user_from_session(&self, session_id: impl AsRef<str>) -> FutureOption<U>;
+    /// Defines a method that should register a user by writing a username and password hash into the database.
     fn register_user(
         &self,
         username: impl AsRef<str>,
         password_hash: impl AsRef<str>,
     ) -> FutureResult<()>;
+    /// Defines a method that should store a new session for a provided user and session id into the database.
     fn store_session(&self, user: &U, session_id: impl AsRef<str>) -> FutureResult<()>;
+    /// Defines a method that should remove an existing session by a provided session id.
     fn remove_session(&self, session_id: impl AsRef<str>) -> FutureResult<()>;
 }
 
@@ -149,6 +159,8 @@ where
 {
     /// Authenticate a user by providing a username and password. This function must be constant time.
     ///
+    /// You're looking for an authentication for a session? Have a look at [`AccessControl::authenticate_session`].
+    ///
     /// The authentication process is implemented by the provided `Backend<impl User>` and its `get_user` method.
     ///
     /// This method may return [`Error::Authentication`] on error, otherwise it returns a AccessControl in the state [`Authenticated`].
@@ -180,6 +192,7 @@ where
         }
     }
 
+    /// Authenticate a user by providing a session id
     pub async fn authenticate_session(
         self,
         session_id: impl AsRef<str>,

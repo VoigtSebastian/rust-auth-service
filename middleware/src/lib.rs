@@ -1,3 +1,5 @@
+//! Contains the middleware implementation that uses generics to provide the desired behavior.
+
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt;

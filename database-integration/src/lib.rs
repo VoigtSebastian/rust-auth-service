@@ -21,14 +21,18 @@ use access_control::{Backend, FutureOption, FutureResult};
 use sqlx::PgPool;
 use std::error;
 
+/// PostgreSQL implementation of the [`Backend`] trait for [`user::User`].
+///
+/// Initialize by calling [`PostgreSqlBackend::new`] and passing in a [`PgPool`].
 #[derive(Debug, Clone)]
 pub struct PostgreSqlBackend {
     pub db: PgPool,
 }
 
 impl PostgreSqlBackend {
+    /// Creates a new PostgreSQL backend with the [`PgPool`] that is passed in.
     pub fn new(db: PgPool) -> PostgreSqlBackend {
-        PostgreSqlBackend { db: db }
+        PostgreSqlBackend { db }
     }
 }
 

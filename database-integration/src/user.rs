@@ -29,9 +29,11 @@ const DELETE_SESSION: &str = "DELETE FROM sessions WHERE session_id = $1;";
 /// The [`SELECT_CAPABILITIES`] constant describes the query to select a new [`DbCapability`] by `user_id`.
 const SELECT_CAPABILITIES: &str = "SELECT * FROM capabilities WHERE user_id = $1;";
 
-/// The [`User`] struct is provided to the Middleware is fetched from the database by running [`User::look_up_user`].
+/// The [`User`] struct is provided to the Middleware and combines data from the user and capabilities table.
 ///
-/// The struct contains only the necessary information to the middleware and skips internal data like the password hash.
+/// The struct contains only selected information that is provided to the backend, middleware and route handler.
+/// Internal data like the password hash is not necessary to the route implementation or middleware and is therefore skipped.
+/// On the contrary, data like the capabilities are not part of the user table, but are move into the [`User`] struct, as they are necessary for authorization.
 #[derive(Debug, Clone, PartialEq)]
 pub struct User {
     user_id: i32,
@@ -42,14 +44,17 @@ pub struct User {
 }
 
 impl UserTrait for User {
+    /// Returns the username
     fn username(&self) -> &str {
         &self.username
     }
 
+    /// Returns the password hash
     fn password_hash(&self) -> &str {
         &self.password_hash
     }
 
+    // Returns the users capabilities as a &HashSet<String>
     fn capabilities(&self) -> &HashSet<String> {
         &self.capabilities
     }
