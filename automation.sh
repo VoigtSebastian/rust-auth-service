@@ -113,7 +113,7 @@ elif [ "$1" == "psql-uri" ]; then
     echo "postgres://$POSTGRES_USER:$PGPASSWORD@$POSTGRES_HOSTNAME:$POSTGRES_PORT/$POSTGRES_DB"
 
 elif [ "$1" == "test" ]; then
-    cargo test --workspace -- --ignored
+    cargo test --workspace -- --include-ignored
 
 elif [ "$1" == "doc" ]; then
     cargo doc --workspace --no-deps --document-private-items --open

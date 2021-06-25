@@ -7,11 +7,11 @@ use std::env;
 /// Calls dotenv(), so that the .env file is used when possible.
 pub async fn create_db_pool() -> anyhow::Result<sqlx::PgPool> {
     dotenv::dotenv().ok();
-    let database_uri = env::var("DATABASE_URL").context(format!("Database URL not set"))?;
+    let database_uri = env::var("DATABASE_URL").context("Database URL not set".to_string())?;
 
     PgPoolOptions::new()
         .max_connections(5)
         .connect(database_uri.as_str())
         .await
-        .context(format!("Postgres connection not successful"))
+        .context("Postgres connection not successful".to_string())
 }

@@ -1,0 +1,6 @@
+[hooks]
+pre-commit = "cargo clippy --workspace -- -D warnings"
+pre-push = "cargo check --workspace"
+
+[logging]
+verbose = true

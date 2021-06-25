@@ -26,7 +26,7 @@ impl ServiceError {
 /// Implements a custom response for actix web when returning an
 /// AuthServiceError
 ///
-/// source: https://mattgathu.dev/2020/04/16/actix-web-error-handling.html
+/// [source](https://mattgathu.dev/2020/04/16/actix-web-error-handling.html)
 impl ResponseError for ServiceError {
     fn status_code(&self) -> StatusCode {
         match *self {
