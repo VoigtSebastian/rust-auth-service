@@ -2,7 +2,7 @@ use std::{env, fs::File, io::BufReader};
 
 use database_integration::utility::create_db_pool;
 
-use actix_web::{App, HttpServer};
+use actix_web::{http::header, middleware, App, HttpServer};
 use rustls::{
     internal::pemfile::{certs, pkcs8_private_keys},
     NoClientAuth, ServerConfig,
@@ -14,6 +14,13 @@ mod routes;
 
 const CERT_ERROR_MESSAGE: &str = "Could not find './cert.pem'";
 const KEY_ERROR_MESSAGE: &str = "Could not find './key.pem'";
+
+/// Content Security Policy for the service.
+///
+/// Currently this uses the tightened basic CSP policy from the [OWASP
+/// Cheatsheet](https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html) with allowance
+/// for the jsdelivr.com CDN.
+const CSP_CONFIG: &str = "default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self'; img-src 'self'; style-src 'self' https://cdn.jsdelivr.net; frame-ancestors 'self'; form-action 'self';";
 
 /// Builds the service address by retrieving the values of the `SERVICE_DOMAIN` and `SERVICE_PORT` environment variables.
 ///
@@ -51,6 +58,10 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
+            .wrap(
+                middleware::DefaultHeaders::new()
+                    .header(header::CONTENT_SECURITY_POLICY, CSP_CONFIG),
+            )
             .wrap(actix_web::middleware::Logger::default())
             .configure(|c| configuration::website(c, &pool))
             .configure(|c| configuration::user_config(c, &pool))
