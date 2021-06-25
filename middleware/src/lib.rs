@@ -212,7 +212,7 @@ where
         let user = AccessControl::new(item.backend.clone())
             .authenticate_creds(username, password)
             .await
-            .map_err(|_| ErrorUnauthorized("invalid username or password"))?
+            .map_err(ErrorUnauthorized)?
             .authorize(&HashSet::new())
             .expect("no capabilities required to login")
             .get_user();
@@ -317,9 +317,9 @@ where
             let user = AccessControl::new(item.backend.clone())
                 .authenticate_session(cookie.value())
                 .await
-                .map_err(|_| ErrorUnauthorized("Invalid credentials"))?
+                .map_err(ErrorUnauthorized)?
                 .authorize(&item.required_caps)
-                .map_err(|_| ErrorForbidden("Insufficient permissions"))?
+                .map_err(ErrorForbidden)?
                 .get_user();
 
             Ok(UserDetails {
