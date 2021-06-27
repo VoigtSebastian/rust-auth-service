@@ -2087,6 +2087,7 @@ dependencies = [
 name = "rust-auth-service"
 version = "0.1.0"
 dependencies = [
+ "actix-rt",
  "actix-web",
  "askama",
  "askama_actix",
@@ -2094,6 +2095,7 @@ dependencies = [
  "dotenv",
  "env_logger",
  "middleware",
+ "rand 0.8.4",
  "rustls",
  "rusty-hook",
  "serde",

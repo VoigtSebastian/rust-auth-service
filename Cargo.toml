@@ -6,6 +6,8 @@ edition = "2018"
 
 [dev-dependencies]
 rusty-hook = "0.11"
+actix-rt = "1"
+rand = "0.8.0"
 
 [dependencies]
 middleware = { path = "middleware" }
