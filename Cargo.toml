@@ -26,5 +26,4 @@ members = [
     "access-control",
     "database-integration",
     "middleware",
-    "service-errors",
 ]
