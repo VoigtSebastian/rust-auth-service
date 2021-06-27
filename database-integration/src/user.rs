@@ -107,7 +107,7 @@ impl User {
     ///
     ///
     /// The query may fail if the connection to postgres is down or the user already exists.
-    /// In this case a [`ServiceError::UserRegistrationFailed`] is returned.
+    /// In this case a [`sqlx::Error`] is returned.
     ///
     /// If successful, the functions returns [`sqlx::postgres::PgDone`].
     pub(crate) async fn register_user(
@@ -124,13 +124,15 @@ impl User {
 
     /// Tries to look up a [`User`] by running the `SELECT_USER` and `SELECT_CAPABILITIES` query.
     ///
-    /// The [`User`] struct is not a representation of what the user looks like in the database, but what the middleware needs to function.
+    /// The [`User`] struct is not a representation of what the user looks like in the database, but what the middleware
+    /// needs to function.
     ///
     ///
-    /// Each query may fail if the connection to postgres is down or the user already exists.
-    /// In this case a [`ServiceError::UserNotFound`] or a [`ServiceError::Default`] error is returned, depending on the queries return type.
+    /// Each query may fail if the connection to postgres is down or the user already exists. In this case a
+    /// [`sqlx::Error`] is returned.
     ///
-    /// If successful, the function return a [`User`] that combines both the `SELECT_USER` and `SELECT_CAPABILITIES` queries, by reading out the necessary data.
+    /// If successful, the function return a [`User`] that combines both the `SELECT_USER` and `SELECT_CAPABILITIES`
+    /// queries, by reading out the necessary data.
     pub(crate) async fn look_up_user(
         connection: &PgPool,
         username: impl AsRef<str>,
@@ -163,7 +165,7 @@ impl User {
     /// The [`User`] struct is not a representation of what the user looks like in the database, but what the middleware needs to function.
     ///
     ///
-    /// On failure, the function returns a [`ServiceError`].
+    /// On failure, the function returns a [`sqlx::Error`].
     /// An error occurs then the user or their capabilities cannot be found in the database.
     ///
     /// If successful, the function return a [`User`] struct that combines the necessary data from two requests.
