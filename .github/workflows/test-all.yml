@@ -1,4 +1,12 @@
-on: [pull_request]
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - main
+      - dev
 
 name: cargo test
 
@@ -43,32 +51,36 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace -- --ignored
+          args: --workspace -- --include-ignored
 
-  # lints:
-  #   name: Lints
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Install necessary packages
-  #       run: apt update && apt install -y build-essential
-  #     - name: Checkout sources
-  #       uses: actions/checkout@v2
+  lints:
+    name: Lints
+    runs-on: ubuntu-latest
+    container: ubuntu:latest
+    steps:
+      - name: Install necessary packages
+        run: |
+          export DEBIAN_FRONTEND="noninteractive"
+          export TZ="Europe/London"
+          apt-get update && apt-get install -y wget curl build-essential libssl1.1 libssl-dev postgresql-client openssl pkg-config
+      - name: Checkout sources
+        uses: actions/checkout@v2
 
-  #     - name: Install stable toolchain
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         profile: minimal
-  #         toolchain: stable
-  #         override: true
-  #         components: rustfmt, clippy
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
 
-  #     - name: Run cargo fmt
-  #       uses: actions-rs/cargo@v1
-  #       with:
-  #         command: fmt
-  #         args: --all -- --check
-  #     - name: Run cargo clippy
-  #       uses: actions-rs/cargo@v1
-  #       with:
-  #         command: clippy
-  #         args: -- -D warnings
+      - name: Run cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+      - name: Run cargo clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --workspace -- -D warnings

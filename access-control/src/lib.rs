@@ -1,28 +1,40 @@
+use argon2::password_hash::SaltString;
+use argon2::Params;
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use std::collections::HashSet;
 use std::future::Future;
 use std::pin::Pin;
 
-use argon2::password_hash::SaltString;
-use argon2::Params;
-use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
-
 /// Memory cost of 15 MiB as per
-/// (OWASP)[https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id]
+/// [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id)
 pub const ARGON2_M_COST: u32 = 15 * 1024;
 
 /// 2 Iterations as per
-/// (OWASP)[https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id]
+/// [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id)
 pub const ARGON2_T_COST: u32 = 2;
 
 /// Degree of parallelism of 1 as per
-/// (OWASP)[https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id]
+/// [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id)
 pub const ARGON2_P_COST: u32 = 1;
 
 /// Fake hash used to archive constant time in the authentication function.
 ///
 /// The PHC hash is derived from an empty password.
-pub const FAKE_PHC_HASH: &'static str =
+pub const FAKE_PHC_HASH: &str =
     "$argon2id$v=19$m=15360,t=2,p=1$saltsaltsaltsalt$1hx6lvjIBIrxykf2XmEdsNUxMAsJ6FBKtP5g4R0UygY";
+
+/// Instead of pulling in the async-trait package to define async trait functions, we use this type to define our own Futures.
+///
+/// Type representing: `Pin<Box<dyn Future<Output = R>>>`
+pub type DynamicFutureReturn<R> = Pin<Box<dyn Future<Output = R>>>;
+/// Instead of pulling in the async-trait package to define async trait functions, we use this type to define our own Futures.
+///
+/// Type representing: `Pin<Box<dyn Future<Output = Result<R, Box<dyn std::error::Error>>>>>>`
+pub type FutureResult<R> = DynamicFutureReturn<Result<R, Box<dyn std::error::Error>>>;
+/// Instead of pulling in the async-trait package to define async trait functions, we use this type to define our own Futures.
+///
+/// Type representing: `Pin<Box<dyn Future<Output = Option<O>>>>`
+pub type FutureOption<O> = DynamicFutureReturn<Option<O>>;
 
 /// Access-Control errors for authentication and authorization
 #[derive(thiserror::Error, Debug)]
@@ -59,28 +71,26 @@ pub trait Backend<U>: Clone
 where
     U: User,
 {
-    fn get_user(&self, username: impl AsRef<str>) -> Pin<Box<dyn Future<Output = Option<U>>>>;
-    fn get_user_from_session(
-        &self,
-        session_id: impl AsRef<str>,
-    ) -> Pin<Box<dyn Future<Output = Option<U>>>>;
+    /// Defines a method that should retrieve a user by name from the database.
+    fn get_user(&self, username: impl AsRef<str>) -> FutureOption<U>;
+    /// Defines a method that should retrieve a user by session id from the database.
+    fn get_user_from_session(&self, session_id: impl AsRef<str>) -> FutureOption<U>;
+    /// Defines a method that should register a user by writing a username and password hash into the database.
     fn register_user(
         &self,
         username: impl AsRef<str>,
         password_hash: impl AsRef<str>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error>>>>>;
-    fn store_session(
-        &self,
-        user: &U,
-        session_id: impl AsRef<str>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn std::error::Error>>>>>;
-    fn remove_session(&self, session_id: impl AsRef<str>) -> Pin<Box<dyn Future<Output = ()>>>;
+    ) -> FutureResult<()>;
+    /// Defines a method that should store a new session for a provided user and session id into the database.
+    fn store_session(&self, user: &U, session_id: impl AsRef<str>) -> FutureResult<()>;
+    /// Defines a method that should remove an existing session by a provided session id.
+    fn remove_session(&self, session_id: impl AsRef<str>) -> FutureResult<()>;
 }
 
 /// The User trait defines the operations of a User that are necessary to be handled by the middleware.
 /// # User operations
 /// The user trait forces two methods that need to be implemented.
-/// 1. The [`User::name`] method that returns a users name as `&str`.
+/// 1. The [`User::username`] method that returns a users name as `&str`.
 /// 2. The [`User::capabilities`] method that returns a users capabilities inside a `&HashSet<String>`
 ///
 /// Capabilities are just a collection of Strings that describe the operations a user is allowed to do.
@@ -103,13 +113,13 @@ fn get_argon2_ctx() -> Argon2<'static> {
     .expect("invalid argon2 parameters")
 }
 
-/// AccessControl defines the behavior of a `Backend<impl User>` and ensures its safety at compile time.
+/// AccessControl defines the behavior of a [`Backend`] and ensures its safety at compile time.
 /// This safety is guaranteed by the implementation of the [typestate pattern](http://cliffle.com/blog/rust-typestate/).
 ///
 /// In the case of the AccessControl struct we use the states [`Start`], [`Authenticated`] and [`Authorized`] to ensure that operations are executed in the correct order.
 /// # Operations
 /// The AccessControl defines multiple operations stretched over multiple states.
-/// 1. **Start** provides the [`AccessControl::new`] and [`AccessControl::authenticate`] method
+/// 1. **Start** provides the [`AccessControl::new`] and [`AccessControl::authenticate_session`] method
 /// 2. **Authenticated** provides the [`AccessControl::authorize`] method
 /// 3. **Authorized** provides the [`AccessControl::get_user`] method
 ///
@@ -149,6 +159,8 @@ where
 {
     /// Authenticate a user by providing a username and password. This function must be constant time.
     ///
+    /// You're looking for an authentication for a session? Have a look at [`AccessControl::authenticate_session`].
+    ///
     /// The authentication process is implemented by the provided `Backend<impl User>` and its `get_user` method.
     ///
     /// This method may return [`Error::Authentication`] on error, otherwise it returns a AccessControl in the state [`Authenticated`].
@@ -180,6 +192,7 @@ where
         }
     }
 
+    /// Authenticate a user by providing a session id
     pub async fn authenticate_session(
         self,
         session_id: impl AsRef<str>,
@@ -286,7 +299,7 @@ pub trait AccessControlState {}
 /// The initial state of the [`AccessControl`] struct when initializing it with [`AccessControl::new`].
 /// For details see: [`AccessControl`]
 pub struct Start;
-/// The [`AccessControl`] struct after a user has been successfully authenticated by reading them from the database with [`AccessControl::authenticate`].
+/// The [`AccessControl`] struct after a user has been successfully authenticated by reading them from the database with [`AccessControl::authenticate_session`].
 /// For details see: [`AccessControl`]
 pub struct Authenticated;
 /// The state of [`AccessControl`] after a user has been successfully authenticated and authorized by comparing them to the required capabilities with [`AccessControl::authorize`].
