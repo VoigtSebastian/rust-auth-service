@@ -2,7 +2,11 @@ use std::{env, fs::File, io::BufReader};
 
 use database_integration::utility::create_db_pool;
 
-use actix_web::{http::header, middleware, App, HttpServer};
+use actix_web::{
+    http::{self, header},
+    middleware::{self, errhandlers::ErrorHandlers},
+    App, HttpServer,
+};
 use rustls::{
     internal::pemfile::{certs, pkcs8_private_keys},
     NoClientAuth, ServerConfig,
@@ -61,6 +65,10 @@ async fn main() -> std::io::Result<()> {
             .wrap(
                 middleware::DefaultHeaders::new()
                     .header(header::CONTENT_SECURITY_POLICY, CSP_CONFIG),
+            )
+            .wrap(
+                ErrorHandlers::new()
+                    .handler(http::StatusCode::UNAUTHORIZED, routes::login_redirect),
             )
             .wrap(actix_web::middleware::Logger::default())
             .configure(|c| configuration::website(c, &pool))
