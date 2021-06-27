@@ -1,9 +1,11 @@
-use access_control::User as UserTrait;
-use chrono::{DateTime, Utc};
-use service_errors::ServiceError;
-use sqlx::{FromRow, PgPool};
 use std::cmp::PartialEq;
 use std::collections::HashSet;
+
+use access_control::User as UserTrait;
+
+use chrono::{DateTime, Utc};
+use sqlx::postgres::PgDone;
+use sqlx::{FromRow, PgPool};
 
 /// This constant describes the query to select a [`DbUser`] by their username.
 const SELECT_USER: &str = "SELECT * FROM users WHERE username = $1;";
@@ -105,48 +107,46 @@ impl User {
     ///
     ///
     /// The query may fail if the connection to postgres is down or the user already exists.
-    /// In this case a [`ServiceError::UserRegistrationFailed`] is returned.
+    /// In this case a [`sqlx::Error`] is returned.
     ///
     /// If successful, the functions returns [`sqlx::postgres::PgDone`].
     pub(crate) async fn register_user(
         connection: &PgPool,
         username: &str,
         password_hash: &str,
-    ) -> Result<(), ServiceError> {
+    ) -> Result<PgDone, sqlx::Error> {
         sqlx::query(INSERT_USER)
             .bind(username)
             .bind(password_hash)
             .execute(connection)
             .await
-            .map_err(|_| Self::user_registration_error(username))?;
-        Ok(())
     }
 
     /// Tries to look up a [`User`] by running the `SELECT_USER` and `SELECT_CAPABILITIES` query.
     ///
-    /// The [`User`] struct is not a representation of what the user looks like in the database, but what the middleware needs to function.
+    /// The [`User`] struct is not a representation of what the user looks like in the database, but what the middleware
+    /// needs to function.
     ///
     ///
-    /// Each query may fail if the connection to postgres is down or the user already exists.
-    /// In this case a [`ServiceError::UserNotFound`] or a [`ServiceError::Default`] error is returned, depending on the queries return type.
+    /// Each query may fail if the connection to postgres is down or the user already exists. In this case a
+    /// [`sqlx::Error`] is returned.
     ///
-    /// If successful, the function return a [`User`] that combines both the `SELECT_USER` and `SELECT_CAPABILITIES` queries, by reading out the necessary data.
+    /// If successful, the function return a [`User`] that combines both the `SELECT_USER` and `SELECT_CAPABILITIES`
+    /// queries, by reading out the necessary data.
     pub(crate) async fn look_up_user(
         connection: &PgPool,
         username: impl AsRef<str>,
-    ) -> Result<User, ServiceError> {
+    ) -> Result<User, sqlx::Error> {
         let username = username.as_ref();
 
         let dbuser = sqlx::query_as::<_, DbUser>(SELECT_USER)
             .bind(username)
             .fetch_one(connection)
-            .await
-            .map_err(|e| Self::user_lookup_error(e, username))?;
+            .await?;
         let user_caps: HashSet<String> = sqlx::query_as::<_, DbCapability>(SELECT_CAPABILITIES)
             .bind(dbuser.user_id)
             .fetch_all(connection)
-            .await
-            .map_err(|e| Self::user_lookup_error(e, username))?
+            .await?
             .into_iter()
             .map(|c: DbCapability| c.label)
             .collect();
@@ -165,24 +165,22 @@ impl User {
     /// The [`User`] struct is not a representation of what the user looks like in the database, but what the middleware needs to function.
     ///
     ///
-    /// On failure, the function returns a [`ServiceError`].
+    /// On failure, the function returns a [`sqlx::Error`].
     /// An error occurs then the user or their capabilities cannot be found in the database.
     ///
     /// If successful, the function return a [`User`] struct that combines the necessary data from two requests.
     pub(crate) async fn look_up_user_from_session(
         connection: &PgPool,
         session_id: &str,
-    ) -> Result<User, ServiceError> {
+    ) -> Result<User, sqlx::Error> {
         let dbuser = sqlx::query_as::<_, DbUser>(SELECT_USER_BY_SESSION_ID)
             .bind(session_id)
             .fetch_one(connection)
-            .await
-            .map_err(|e| Self::user_lookup_error(e, session_id))?;
+            .await?;
         let user_caps: HashSet<String> = sqlx::query_as::<_, DbCapability>(SELECT_CAPABILITIES)
             .bind(dbuser.user_id)
             .fetch_all(connection)
-            .await
-            .map_err(|e| Self::user_lookup_error(e, session_id))?
+            .await?
             .into_iter()
             .map(|c: DbCapability| c.label)
             .collect();
@@ -214,13 +212,12 @@ impl User {
         connection: &PgPool,
         user: &User,
         session_id: &str,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<PgDone, sqlx::Error> {
         sqlx::query(INSERT_SESSION)
             .bind(session_id)
             .bind(user.user_id)
             .execute(connection)
-            .await?;
-        Ok(())
+            .await
     }
 
     /// Tries to delete a session by its `session_id`.
@@ -230,34 +227,11 @@ impl User {
     pub(crate) async fn remove_session(
         connection: &PgPool,
         session_id: &str,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<PgDone, sqlx::Error> {
         sqlx::query(DELETE_SESSION)
             .bind(session_id)
             .execute(connection)
-            .await?;
-        Ok(())
-    }
-
-    /// Map a [`sqlx::Error`] to a [`ServiceError`] when a user lookup fails.
-    ///
-    /// As a default, [`ServiceError::Default`] is returned.
-    /// If the [`sqlx::Error`] is [`sqlx::Error::RowNotFound`], [`ServiceError::UserNotFound`] is returned.
-    fn user_lookup_error(error: sqlx::Error, username: &str) -> ServiceError {
-        match error {
-            sqlx::Error::RowNotFound => ServiceError::UserNotFound {
-                username: username.into(),
-            },
-            _ => ServiceError::Default,
-        }
-    }
-
-    /// Map a [`sqlx::Error`] to a [`ServiceError`] when a user lookup fails.
-    ///
-    /// Currently, only [`ServiceError::UserRegistrationFailed`] is returned.
-    fn user_registration_error(username: &str) -> ServiceError {
-        ServiceError::UserRegistrationFailed {
-            username: username.into(),
-        }
+            .await
     }
 }
 

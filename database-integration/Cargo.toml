@@ -6,7 +6,6 @@ edition = "2018"
 
 [dependencies]
 access-control = { path = "../access-control" }
-service-errors = { path = "../service-errors" }
 
 anyhow = "1.0"
 chrono = "0.4.19"
