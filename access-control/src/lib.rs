@@ -292,10 +292,11 @@ where
     }
 }
 
-// TODO: Seal https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
-/// The [AccessControlState] trait can be implemented to add another state to the [`AccessControl`] struct.
-/// It is part of the compile time safety check implemented using the [typestate pattern](http://cliffle.com/blog/rust-typestate/).
-pub trait AccessControlState {}
+/// The [AccessControlState] trait is
+/// [sealed](https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed)
+/// and cannot be implemented. It is part of the compile time safety check implemented using the [typestate
+/// pattern](http://cliffle.com/blog/rust-typestate/).
+pub trait AccessControlState: private::Sealed {}
 /// The initial state of the [`AccessControl`] struct when initializing it with [`AccessControl::new`].
 /// For details see: [`AccessControl`]
 pub struct Start;
@@ -309,3 +310,13 @@ pub struct Authorized;
 impl AccessControlState for Start {}
 impl AccessControlState for Authenticated {}
 impl AccessControlState for Authorized {}
+
+/// Private module which contains the sealed trait pattern.
+mod private {
+    /// The private trait which only we can implement.
+    pub trait Sealed {}
+
+    impl Sealed for super::Start {}
+    impl Sealed for super::Authenticated {}
+    impl Sealed for super::Authorized {}
+}

@@ -18,8 +18,7 @@ use actix_web::dev::{Payload, PayloadStream, ServiceRequest, ServiceResponse};
 use actix_web::error::{
     ErrorBadRequest, ErrorForbidden, ErrorInternalServerError, ErrorUnauthorized,
 };
-use actix_web::http::header;
-use actix_web::{Error, FromRequest, HttpMessage, HttpRequest, HttpResponse};
+use actix_web::{Error, FromRequest, HttpMessage, HttpRequest};
 use futures_core::Future;
 use futures_util::future::{ok, Ready};
 use rand::RngCore;
@@ -212,7 +211,7 @@ where
         let user = AccessControl::new(item.backend.clone())
             .authenticate_creds(username, password)
             .await
-            .map_err(|_| ErrorUnauthorized("invalid username or password"))?
+            .map_err(ErrorUnauthorized)?
             .authorize(&HashSet::new())
             .expect("no capabilities required to login")
             .get_user();
@@ -300,26 +299,21 @@ where
         let req = req.clone();
 
         Box::pin(async move {
-            let login_redirect = || {
-                HttpResponse::Found()
-                    .header(header::LOCATION, "/login")
-                    .finish()
-            };
+            let err = || ErrorUnauthorized(access_control::Error::Authentication);
 
-            // Redirect to /login if "id" cookie is not set or we can't find the extensions.
-            let cookie = req.cookie("id").ok_or_else(login_redirect)?;
+            let cookie = req.cookie("id").ok_or_else(err)?;
             let mut extensions = req.extensions_mut();
             let item = extensions
                 .get_mut::<SessionStateItem<B, U>>()
-                .ok_or_else(login_redirect)?;
+                .ok_or_else(err)?;
 
             // Authenticate and authorize with the session ID
             let user = AccessControl::new(item.backend.clone())
                 .authenticate_session(cookie.value())
                 .await
-                .map_err(|_| ErrorUnauthorized("Invalid credentials"))?
+                .map_err(ErrorUnauthorized)?
                 .authorize(&item.required_caps)
-                .map_err(|_| ErrorForbidden("Insufficient permissions"))?
+                .map_err(ErrorForbidden)?
                 .get_user();
 
             Ok(UserDetails {

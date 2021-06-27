@@ -888,7 +888,6 @@ dependencies = [
  "anyhow",
  "chrono",
  "dotenv",
- "service-errors",
  "sqlx",
 ]
 
@@ -2294,15 +2293,6 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
-]
-
-[[package]]
-name = "service-errors"
-version = "0.1.0"
-dependencies = [
- "actix-web",
- "serde",
- "thiserror",
 ]
 
 [[package]]

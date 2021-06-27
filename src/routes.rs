@@ -3,7 +3,13 @@ use crate::pages::{LoginPage, RegisterPage, StatusPage};
 use database_integration::{user::User, PostgreSqlBackend};
 use middleware::{SessionState, UserDetails};
 
-use actix_web::{http::header, web::Form, HttpResponse, Responder, Result};
+use actix_web::{
+    dev::{self, ServiceResponse},
+    http::header,
+    middleware::errhandlers::ErrorHandlerResponse,
+    web::Form,
+    HttpResponse, Responder, Result,
+};
 use askama::Template;
 use serde::Deserialize;
 
@@ -11,6 +17,15 @@ use serde::Deserialize;
 pub struct Credentials {
     username: String,
     password: String,
+}
+
+pub fn login_redirect(res: dev::ServiceResponse) -> Result<ErrorHandlerResponse<dev::Body>> {
+    Ok(ErrorHandlerResponse::Response(ServiceResponse::new(
+        res.request().clone(),
+        HttpResponse::Found()
+            .header(header::LOCATION, "/login")
+            .finish(),
+    )))
 }
 
 pub async fn register_page() -> impl Responder {
