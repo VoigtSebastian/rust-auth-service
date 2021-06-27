@@ -35,8 +35,25 @@ Additionally:
 2. The service is **not meant for production**
 3. SQLx — our SQL library — does not support 1:n mapping. This might be a security issue in our User implementation, as we need two queries to access a user and their capabilities.
 
-## CI
+## Project structure
 
+This projects uses cargo workspace to organize the project into multiple crates, currently there are 5 crates.
+
+1. **src/** the executable crate that builds the example web server
+2. **middlware** contains the actix-web handle session authorization/authentication
+3. **access-control** control contains the code, that is used to control a users access by the backend
+4. **database-integration** contains all the database specific code, that is used in the example application5
+5. **service-errors** contains all errors that are used by the application — like library errors
+
+## Automation
+
+There are multiple directions of automation in this projects.
+
+There is local automation by manually running the `automation.sh` script, that automates repetitive tasks.
+
+Git automation using [rusty-hook](https://lib.rs/crates/rusty-hook) that checks for errors before committing and pushing to the repository.
+
+And finally, there is remote automation using GitHub Actions.
 Every time a pull-requests gets opened for this repository an automatic GitHub-Action is run that executes all tests in the cargo-workspace, including the tests that use the PostgreSQL database.
 
 ## Development
