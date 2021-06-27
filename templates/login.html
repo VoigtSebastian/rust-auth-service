@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section id="login" class="py-5">
+  <h1>Login</h1>
+
+  {% if error %}
+  <div class="alert alert-danger alert-dismissible" role="alert">
+    <strong>Login failed:</strong> Invalid username or password.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endif %}
+
+  <form action="/login" method="POST">
+    <div class="mb-3">
+      <label for="username" class="form-label">Username:</label>
+      <input type="text" id="username" name="username" required class="form-control">
+    </div>
+    <div class="mb-3">
+      <label for="password" class="form-label">Password:</label>
+      <input type="password" id="password" name="password" required class="form-control">
+    </div>
+    <button type="submit" class="btn btn-primary">Login</button>
+  </form>
+</section>
+{% endblock %}

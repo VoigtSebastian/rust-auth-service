@@ -4,16 +4,29 @@ version = "0.1.0"
 authors = ["Benjamin Faller", "Sebastian Voigt"]
 edition = "2018"
 
-[dependencies]
-authorization = { path = "authorization" }
-service-errors = { path = "service-errors" }
+[dev-dependencies]
+rusty-hook = "0.11"
+actix-rt = "1"
+rand = "0.8.0"
 
+[dependencies]
+middleware = { path = "middleware" }
+database-integration = { path = "database-integration" }
+
+actix-web = { version = "3", features = [ "rustls" ] }
+askama = { version = "0.10", features = [ "with-actix-web" ] }
+askama_actix = "0.11"
 dotenv = "0.15.0"
-actix-web = "3"
+env_logger = "0.8"
+# Unfortunately Rustls 0.19 is not yet supported by Actix
+rustls = "0.18"
+serde = "1"
+sqlx = { version = "0.4", features = [ "runtime-actix-native-tls", "postgres", "uuid", "chrono" ] }
 
 [workspace]
 members = [
-    "service-errors",
+    "access-control",
     "database-integration",
-    "authorization"
+    "middleware",
+    "service-errors",
 ]

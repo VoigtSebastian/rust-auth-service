@@ -4,10 +4,10 @@ use serde::Serialize;
 /// Enum of the available errors in the auth-service.
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceError {
-    #[error("User {email:?} not found")]
-    UserNotFound { email: String },
-    #[error("User {email:?} could not be registered")]
-    UserRegistrationFailed { email: String },
+    #[error("User {username:?} not found")]
+    UserNotFound { username: String },
+    #[error("User {username:?} could not be registered")]
+    UserRegistrationFailed { username: String },
     #[error("Internal Error")]
     Default,
 }
@@ -26,7 +26,7 @@ impl ServiceError {
 /// Implements a custom response for actix web when returning an
 /// AuthServiceError
 ///
-/// source: https://mattgathu.dev/2020/04/16/actix-web-error-handling.html
+/// [source](https://mattgathu.dev/2020/04/16/actix-web-error-handling.html)
 impl ResponseError for ServiceError {
     fn status_code(&self) -> StatusCode {
         match *self {

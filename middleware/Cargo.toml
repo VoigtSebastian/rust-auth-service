@@ -1,0 +1,16 @@
+[package]
+name = "middleware"
+version = "0.1.0"
+authors = ["Benjamin Faller", "Sebastian Voigt"]
+edition = "2018"
+
+[dependencies]
+access-control = { path = "../access-control" }
+
+actix-service = "1"
+actix-web = "3"
+base64 = "0.13"
+futures-core = { version = "0.3.7", default-features = false }
+futures-util = { version = "0.3.7", default-features = false }
+rand = "0.8"
+time = "0.2"

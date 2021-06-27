@@ -5,12 +5,13 @@ authors = ["Benjamin Faller", "Sebastian Voigt"]
 edition = "2018"
 
 [dependencies]
+access-control = { path = "../access-control" }
+service-errors = { path = "../service-errors" }
+
+anyhow = "1.0"
 chrono = "0.4.19"
 dotenv = "0.15.0"
-anyhow = "1.0"
-
 sqlx = { version = "0.4", features = [ "runtime-actix-native-tls", "postgres", "uuid", "chrono" ] }
 
+[dev-dependencies]
 actix-rt = "1"
-
-service-errors = { path = "../service-errors" }
