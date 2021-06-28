@@ -52,6 +52,21 @@ Additionally:
 2. The service is **not meant for production**
 3. SQLx — our SQL library — does not support 1:n mapping. This might be a security issue in our User implementation, as we need two queries to access a user and their capabilities.
 
+With the disclaimer out of the way, we tried to at least pay attention to
+security. What has been considered security wise:
+
+- Secure password storage with Argon2 as recommended per OWASP
+- Prevention of username enumeration by timing attacks (incomplete)
+- Generic error messages
+- Cookie handling and session protection
+- Enforced Authentication at compile time with typestates
+- Authorization based on capabilities
+- Strict Content Security Policy for XSS and Session Hijacking prevention
+- And obviously HTTPS
+
+However not everything is perfect. Currently, we don't issue CSRF tokens.
+2FA/MFA is missing and realistically a heap of stuff we didn't even think about.
+
 ## Project structure
 
 This projects uses cargo workspace to organize the project into multiple crates, currently there are 5 crates.
