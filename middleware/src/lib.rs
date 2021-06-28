@@ -2,15 +2,12 @@
 
 use std::cell::RefCell;
 use std::collections::HashSet;
-use std::fmt;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::rc::Rc;
 use std::task::{Context, Poll};
 
-use access_control::AccessControl;
-use access_control::Backend;
-use access_control::User as UserTrait;
+use access_control::{AccessControl, Backend};
 
 use actix_service::{Service, Transform};
 use actix_web::cookie::{Cookie, SameSite};
@@ -27,43 +24,38 @@ use time::{Duration, OffsetDateTime};
 /// A simple type to describe a dynamic Future to make clippy happy.
 type DynamicFutureReturn<R> = Pin<Box<dyn Future<Output = R>>>;
 
-pub struct RustAuthMiddleware<T, U>
+pub struct RustAuthMiddleware<T>
 where
-    T: Backend<U>,
-    U: UserTrait,
+    T: Backend,
 {
     pub backend: T,
     pub required_capabilities: HashSet<String>,
-    phantom: PhantomData<U>,
 }
 
-impl<T, U> RustAuthMiddleware<T, U>
+impl<T> RustAuthMiddleware<T>
 where
-    T: Backend<U>,
-    U: UserTrait,
+    T: Backend,
 {
     pub fn new(backend: T, required_capabilities: HashSet<String>) -> Self {
         Self {
             backend,
             required_capabilities,
-            phantom: PhantomData,
         }
     }
 }
 
-impl<S, B, T, U> Transform<S> for RustAuthMiddleware<T, U>
+impl<S, B, T> Transform<S> for RustAuthMiddleware<T>
 where
     S: Service<Request = ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
     B: 'static,
-    T: Backend<U> + 'static + fmt::Debug,
-    U: UserTrait + Clone + 'static + fmt::Debug,
+    T: Backend + Clone + 'static,
 {
     type Request = ServiceRequest;
     type Response = ServiceResponse<B>;
     type Error = Error;
     type InitError = ();
-    type Transform = AuthorizationMiddleware<S, T, U>;
+    type Transform = AuthorizationMiddleware<S, T>;
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
@@ -71,32 +63,28 @@ where
             backend: self.backend.clone(),
             required_capabilities: self.required_capabilities.clone(),
             service: Rc::new(RefCell::new(service)),
-            phantom: self.phantom,
         })
     }
 }
 
 /// Actix Web middleware to facilitate access control for Actix services.
-pub struct AuthorizationMiddleware<S, T, U>
+pub struct AuthorizationMiddleware<S, T>
 where
-    T: Backend<U>,
-    U: UserTrait,
+    T: Backend,
 {
     backend: T,
     required_capabilities: HashSet<String>,
     /// TODO: Check whether the `Rc<RefCell<S>>` structure is properly implemented and safe.
     /// Especially race conditions have not been checked yet.
     service: Rc<RefCell<S>>,
-    phantom: PhantomData<U>,
 }
 
-impl<S, B, T, U> Service for AuthorizationMiddleware<S, T, U>
+impl<S, B, T> Service for AuthorizationMiddleware<S, T>
 where
     S: Service<Request = ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
     B: 'static,
-    T: Backend<U> + 'static,
-    U: UserTrait + 'static,
+    T: Backend + Clone + 'static,
 {
     type Request = ServiceRequest;
     type Response = ServiceResponse<B>;
@@ -117,7 +105,6 @@ where
                 actions: Vec::new(),
                 backend: backend.clone(),
                 required_caps,
-                phantom: PhantomData,
             };
             req.extensions_mut().insert(item);
 
@@ -127,7 +114,7 @@ where
             let item = res
                 .request()
                 .extensions_mut()
-                .remove::<SessionStateItem<T, U>>()
+                .remove::<SessionStateItem<T>>()
                 .unwrap();
 
             for action in item.actions {
@@ -168,41 +155,36 @@ enum SessionStateAction {
 }
 
 #[derive(Debug)]
-struct SessionStateItem<B, U>
+struct SessionStateItem<B>
 where
-    B: Backend<U>,
-    U: UserTrait,
+    B: Backend,
 {
     actions: Vec<SessionStateAction>,
     backend: B,
     required_caps: HashSet<String>,
-    phantom: PhantomData<U>,
 }
 
 #[derive(Debug, Clone)]
-pub struct SessionState<B, U>
+pub struct SessionState<B>
 where
-    B: Backend<U>,
-    U: UserTrait,
+    B: Backend,
 {
     req: HttpRequest,
-    phantom_backend: PhantomData<B>,
-    phantom_user: PhantomData<U>,
+    phantom: PhantomData<B>,
 }
 
-impl<B, U> SessionState<B, U>
+impl<B> SessionState<B>
 where
-    B: Backend<U> + 'static,
-    U: UserTrait + 'static,
+    B: Backend + Clone + 'static,
 {
     pub async fn login(
         &self,
         username: impl AsRef<str>,
         password: impl AsRef<str>,
-    ) -> Result<U, Error> {
+    ) -> Result<B::User, Error> {
         let mut extensions = self.req.extensions_mut();
         let item = extensions
-            .get_mut::<SessionStateItem<B, U>>()
+            .get_mut::<SessionStateItem<B>>()
             .ok_or_else(|| ErrorInternalServerError("extractor failed"))?;
 
         // https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html#user-ids
@@ -234,11 +216,7 @@ where
     }
 
     pub async fn logout(&self) {
-        if let Some(item) = self
-            .req
-            .extensions_mut()
-            .get_mut::<SessionStateItem<B, U>>()
-        {
+        if let Some(item) = self.req.extensions_mut().get_mut::<SessionStateItem<B>>() {
             item.actions.push(SessionStateAction::Logout);
         }
     }
@@ -252,7 +230,7 @@ where
     ) -> Result<(), Error> {
         let mut extensions = self.req.extensions_mut();
         let item = extensions
-            .get_mut::<SessionStateItem<B, U>>()
+            .get_mut::<SessionStateItem<B>>()
             .ok_or_else(|| ErrorInternalServerError("extractor failed"))?;
 
         AccessControl::new(item.backend.clone())
@@ -262,34 +240,33 @@ where
     }
 }
 
-impl<B, U> FromRequest for SessionState<B, U>
+impl<B> FromRequest for SessionState<B>
 where
-    B: Backend<U>,
-    U: UserTrait,
+    B: Backend,
 {
     type Config = ();
     type Error = Error;
-    type Future = Ready<Result<SessionState<B, U>, Error>>;
+    type Future = Ready<Result<SessionState<B>, Error>>;
 
     #[inline]
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
         ok(SessionState {
             req: req.clone(),
-            phantom_backend: PhantomData,
-            phantom_user: PhantomData,
+            phantom: PhantomData,
         })
     }
 }
 
-pub struct UserDetails<B, U> {
-    pub user: U,
-    phantom: PhantomData<B>,
+pub struct UserDetails<B>
+where
+    B: Backend,
+{
+    pub user: B::User,
 }
 
-impl<B, U> FromRequest for UserDetails<B, U>
+impl<B> FromRequest for UserDetails<B>
 where
-    B: Backend<U> + 'static + fmt::Debug,
-    U: UserTrait + Clone + 'static + fmt::Debug,
+    B: Backend + Clone + 'static,
 {
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self, Error>>>>;
@@ -304,7 +281,7 @@ where
             let cookie = req.cookie("id").ok_or_else(err)?;
             let mut extensions = req.extensions_mut();
             let item = extensions
-                .get_mut::<SessionStateItem<B, U>>()
+                .get_mut::<SessionStateItem<B>>()
                 .ok_or_else(err)?;
 
             // Authenticate and authorize with the session ID
@@ -316,10 +293,7 @@ where
                 .map_err(ErrorForbidden)?
                 .get_user();
 
-            Ok(UserDetails {
-                user,
-                phantom: PhantomData,
-            })
+            Ok(UserDetails { user })
         })
     }
 }

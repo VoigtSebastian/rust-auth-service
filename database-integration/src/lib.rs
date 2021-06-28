@@ -36,7 +36,9 @@ impl PostgreSqlBackend {
     }
 }
 
-impl Backend<user::User> for PostgreSqlBackend {
+impl Backend for PostgreSqlBackend {
+    type User = user::User;
+
     fn get_user(&self, username: impl AsRef<str>) -> FutureOption<user::User> {
         let db = self.db.clone();
         let username = username.as_ref().to_string();
