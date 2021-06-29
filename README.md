@@ -69,13 +69,69 @@ However not everything is perfect. Currently, we don't issue CSRF tokens.
 
 ## Project structure
 
-This projects uses cargo workspace to organize the project into multiple crates, currently there are 5 crates.
+This projects uses cargo workspace to organize the project into multiple crates, currently there are 4 crates.
+In addition to the 4 rust crates, the `sql` subdirectory contains the `up.sql`and `down.sql` scripts used to initialize the database.
 
-1. **src/** the executable crate that builds the example web server
-2. **middlware** contains the actix-web handle session authorization/authentication
-3. **access-control** control contains the code, that is used to control a users access by the backend
-4. **database-integration** contains all the database specific code, that is used in the example application5
-5. **service-errors** contains all errors that are used by the application — like library errors
+### Workspace
+
+- **src/** the executable crate that builds the example web server
+- **database-integration** contains all the database specific code, that is used in the example application5
+- **middlware** contains the actix-web handle session authorization/authentication
+- **access-control** control contains the code, that is used to control a users access by the backend
+
+The auth library consists of two crates, `access-control`and `middleware`.
+The `access-control` crate contains two traits `User` and `Backend` and additionally the struct `AccessControl`.
+The `middleware` crate contains the actix-web middleware that uses those traits to check a request's validity.
+
+The `main` crate in the projects root and the crate `database-integration` implement the traits provided by `access-control` and use them to build an executable application.
+The `database-integration` crate contains the `User` and `PostgreSqlBackend` implementation which provide access to the PostgreSQL database to the `RustAuthMiddleware` and `AccessControl`.
+
+## Data Flow
+
+The basic flow of data starts with an HTTP request.
+If the requests is to an existing route, that is using the `RustAuthMiddleware`, the request will be handled in one of two following ways.
+
+### The user is not logged in / registered
+
+TODO: description of login process
+
+Respond with a redirect to the login page.
+This gets indirectly triggered by the `RustAuthMiddleware`, as it returns an error with the status-code UNAUTHORIZED, which will then be caught by an ErrorHandler.
+This way, a user that is trying to get access to the website, but is not logged in, will always end up at the login page.
+
+```rust
+// middleware/src/lib.rs ; line 193
+// Tries to retrieve a user from the database an returns an ErrorUnauthorized if this fails.
+// The same behavior is used in multiple parts of the middleware.
+let user = AccessControl::new(item.backend.clone())
+            .authenticate_creds(username, password)
+            .await
+            .map_err(ErrorUnauthorized)?
+
+// src/main.rs ; line 64
+// Register an error handler that redirects to the login page
+App::new()
+    .wrap(
+        ErrorHandlers::new()
+            .handler(http::StatusCode::UNAUTHORIZED, routes::login_redirect),
+    )
+
+// src/routes.rs ; line 22
+// The actual redirect response
+pub fn login_redirect(res: dev::ServiceResponse) -> Result<ErrorHandlerResponse<dev::Body>> {
+    Ok(ErrorHandlerResponse::Response(ServiceResponse::new(
+        res.request().clone(),
+        HttpResponse::Found()
+            .header(header::LOCATION, "/login")
+            .finish(),
+    )))
+}
+```
+
+### The user is logged in
+
+Authorize the user by checking their capabilities and check if they are a superset of the required capabilities.
+TODO: description of user extraction
 
 ## Build the documentation
 
