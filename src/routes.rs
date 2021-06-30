@@ -1,8 +1,6 @@
+//! Provides all routes used by the actix-web example application.
+
 use crate::pages::{LoginPage, RegisterPage, StatusPage};
-
-use database_integration::PostgreSqlBackend;
-use middleware::{SessionState, UserDetails};
-
 use actix_web::{
     dev::{self, ServiceResponse},
     http::header,
@@ -11,6 +9,8 @@ use actix_web::{
     HttpResponse, Responder, Result,
 };
 use askama::Template;
+use database_integration::PostgreSqlBackend;
+use middleware::{SessionState, UserDetails};
 use serde::Deserialize;
 
 #[derive(Deserialize)]

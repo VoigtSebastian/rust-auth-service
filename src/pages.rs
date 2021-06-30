@@ -1,3 +1,5 @@
+//! Provides access to the website temples that are used by the actix-web example application.
+
 use askama::Template;
 use database_integration::user::User;
 

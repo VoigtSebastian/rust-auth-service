@@ -16,7 +16,9 @@ mod configuration;
 mod pages;
 mod routes;
 
+/// Error message shown if the certificate file in missing
 const CERT_ERROR_MESSAGE: &str = "Could not find './cert.pem'";
+/// Error message shown if the key file is missing
 const KEY_ERROR_MESSAGE: &str = "Could not find './key.pem'";
 
 /// Content Security Policy for the service.
@@ -28,7 +30,7 @@ const CSP_CONFIG: &str = "default-src 'none'; script-src 'self' https://cdn.jsde
 
 /// Builds the service address by retrieving the values of the `SERVICE_DOMAIN` and `SERVICE_PORT` environment variables.
 ///
-/// This function calls **`.unwrap()`**.
+/// This function calls **`.expect`**.
 /// This is mostly to avoid situations in which the service should not run with default values.
 /// In every other situation this shouldn't be an issue, thanks to the `.env` file.
 fn build_address() -> String {
@@ -37,12 +39,16 @@ fn build_address() -> String {
     format!("{}:{}", domain, port)
 }
 
-/// This Service starts an HttpServer using actix-web with four routes.
-/// - A route that serves mocked public information under /information/public
-/// - A route that serves mocked user specific information under /information/user
-/// - A route that serves mocked admin specific information under /information/admin
+/// This Service starts the actix-web example application.
 ///
-/// The Authorization header must be set to either User or Admin to access 'sensitive data'
+/// To execute this program with its default values, execute these commands.
+///
+/// 1. `./automation.sh container start`
+/// 2. `./automation.sh db up`
+/// 3. `./automation gencert`
+/// 4. `cargo build --workspace`
+/// 5. `cargo run`
+/// 6. Visit [https://localhost:8080/](https://localhost:8080/)
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
