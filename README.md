@@ -15,7 +15,7 @@ To use the example implementation of this service, you should have a working doc
 
 To run the database execute the command `./automation.sh container start` after the container is running, execute `./automation.sh db up` to create the database-schema for this database.
 
-Before running the service you have to create a certificate by running `./automation.sh gencert`.
+Before running the service, you have to create a certificate by running `./automation.sh gencert`.
 This command will run `openssl` and create the files `cert.pem`and `key.pem`.
 
 After starting the database and creating its schema, you can execute `cargo build --workspace` and `cargo run` to run the service with its default values.
