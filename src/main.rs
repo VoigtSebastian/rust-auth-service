@@ -16,7 +16,9 @@ mod configuration;
 mod pages;
 mod routes;
 
+/// Error message shown if the certificate file in missing
 const CERT_ERROR_MESSAGE: &str = "Could not find './cert.pem'";
+/// Error message shown if the key file is missing
 const KEY_ERROR_MESSAGE: &str = "Could not find './key.pem'";
 
 /// Content Security Policy for the service.
@@ -28,7 +30,7 @@ const CSP_CONFIG: &str = "default-src 'none'; script-src 'self' https://cdn.jsde
 
 /// Builds the service address by retrieving the values of the `SERVICE_DOMAIN` and `SERVICE_PORT` environment variables.
 ///
-/// This function calls **`.unwrap()`**.
+/// This function calls **`.expect`**.
 /// This is mostly to avoid situations in which the service should not run with default values.
 /// In every other situation this shouldn't be an issue, thanks to the `.env` file.
 fn build_address() -> String {
@@ -37,12 +39,16 @@ fn build_address() -> String {
     format!("{}:{}", domain, port)
 }
 
-/// This Service starts an HttpServer using actix-web with four routes.
-/// - A route that serves mocked public information under /information/public
-/// - A route that serves mocked user specific information under /information/user
-/// - A route that serves mocked admin specific information under /information/admin
+/// This Service starts the actix-web example application.
 ///
-/// The Authorization header must be set to either User or Admin to access 'sensitive data'
+/// To execute this program with its default values, execute these commands.
+///
+/// 1. `./automation.sh container start`
+/// 2. `./automation.sh db up`
+/// 3. `./automation gencert`
+/// 4. `cargo build --workspace`
+/// 5. `cargo run`
+/// 6. Visit [https://localhost:8080/](https://localhost:8080/)
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
@@ -86,6 +92,8 @@ async fn main() -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    // These test should be rewritten and either build using a macro or a combination of functions.
+    // Time limitation don't allow for this (currently), keep in mind that the tests are very repetitive.
     use super::*;
     use actix_web::{cookie::Cookie, test, App};
     use rand::{distributions::Alphanumeric, thread_rng, Rng};
@@ -127,7 +135,7 @@ mod tests {
             .unwrap()
             .to_string()
             .to_lowercase(),
-            password: "asdfasdfasdfasdf".to_string(),
+            password: "12345678901234567890".to_string(),
         };
 
         // register user
@@ -193,5 +201,121 @@ mod tests {
             .fetch_one(&pool)
             .await
             .is_err());
+    }
+
+    #[ignore = "Database necessary to run these tests"]
+    #[actix_rt::test]
+    #[should_panic]
+    async fn registration_password_to_short() {
+        dotenv::dotenv().ok();
+        // create database pool
+        let pool = create_db_pool()
+            .await
+            .expect("could not create database pool");
+
+        // Create app with standard configuration
+        let mut app = test::init_service(
+            App::new()
+                .configure(|c| configuration::website(c, &pool))
+                .configure(|c| configuration::user_config(c, &pool))
+                .configure(|c| configuration::admin_config(c, &pool)),
+        )
+        .await;
+
+        // Tests start here
+        let credentials = Credentials {
+            username: std::str::from_utf8(
+                &thread_rng()
+                    .sample_iter(Alphanumeric)
+                    .take(32)
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap()
+            .to_string()
+            .to_lowercase(),
+            password: std::str::from_utf8(
+                &thread_rng()
+                    .sample_iter(Alphanumeric)
+                    .take(11)
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap()
+            .to_string()
+            .to_lowercase(),
+        };
+
+        // register user
+        let register_req = test::TestRequest::post()
+            .set_form(&credentials)
+            .uri("/register")
+            .to_request();
+        let resp = test::call_service(&mut app, register_req).await;
+        assert!(!resp.status().is_redirection());
+
+        // check that the database contains the newly created user
+        let _: i32 = sqlx::query("SELECT * FROM users WHERE username = $1;")
+            .bind(&credentials.username)
+            .map(|row: PgRow| row.try_get("user_id").unwrap())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    }
+
+    #[ignore = "Database necessary to run these tests"]
+    #[actix_rt::test]
+    #[should_panic]
+    async fn registration_password_to_long() {
+        dotenv::dotenv().ok();
+        // create database pool
+        let pool = create_db_pool()
+            .await
+            .expect("could not create database pool");
+
+        // Create app with standard configuration
+        let mut app = test::init_service(
+            App::new()
+                .configure(|c| configuration::website(c, &pool))
+                .configure(|c| configuration::user_config(c, &pool))
+                .configure(|c| configuration::admin_config(c, &pool)),
+        )
+        .await;
+
+        // Tests start here
+        let credentials = Credentials {
+            username: std::str::from_utf8(
+                &thread_rng()
+                    .sample_iter(Alphanumeric)
+                    .take(32)
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap()
+            .to_string()
+            .to_lowercase(),
+            password: std::str::from_utf8(
+                &thread_rng()
+                    .sample_iter(Alphanumeric)
+                    .take(257)
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap()
+            .to_string()
+            .to_lowercase(),
+        };
+
+        // register user
+        let register_req = test::TestRequest::post()
+            .set_form(&credentials)
+            .uri("/register")
+            .to_request();
+        let resp = test::call_service(&mut app, register_req).await;
+        assert!(!resp.status().is_redirection());
+
+        // check that the database contains the newly created user
+        let _: i32 = sqlx::query("SELECT * FROM users WHERE username = $1;")
+            .bind(&credentials.username)
+            .map(|row: PgRow| row.try_get("user_id").unwrap())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     }
 }

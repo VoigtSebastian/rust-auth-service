@@ -28,7 +28,9 @@ impl User for TestUser {
 #[derive(Debug, Clone)]
 struct TestBackend;
 
-impl Backend<TestUser> for TestBackend {
+impl Backend for TestBackend {
+    type User = TestUser;
+
     fn get_user(&self, _username: impl AsRef<str>) -> FutureOption<TestUser> {
         Box::pin(ready(Some(TestUser)))
     }

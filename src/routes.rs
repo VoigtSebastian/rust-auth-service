@@ -1,8 +1,6 @@
+//! Provides all routes used by the actix-web example application.
+
 use crate::pages::{LoginPage, RegisterPage, StatusPage};
-
-use database_integration::{user::User, PostgreSqlBackend};
-use middleware::{SessionState, UserDetails};
-
 use actix_web::{
     dev::{self, ServiceResponse},
     http::header,
@@ -11,6 +9,8 @@ use actix_web::{
     HttpResponse, Responder, Result,
 };
 use askama::Template;
+use database_integration::PostgreSqlBackend;
+use middleware::{SessionState, UserDetails};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -34,7 +34,7 @@ pub async fn register_page() -> impl Responder {
 
 pub async fn do_register(
     form: Form<Credentials>,
-    session_state: SessionState<PostgreSqlBackend, User>,
+    session_state: SessionState<PostgreSqlBackend>,
 ) -> impl Responder {
     let message = session_state
         .register(&form.username, &form.password)
@@ -52,7 +52,7 @@ pub async fn login_page() -> impl Responder {
 
 pub async fn do_login(
     form: Form<Credentials>,
-    session_state: SessionState<PostgreSqlBackend, User>,
+    session_state: SessionState<PostgreSqlBackend>,
 ) -> impl Responder {
     match session_state.login(&form.username, &form.password).await {
         Ok(_) => HttpResponse::Found().header(header::LOCATION, "/").finish(),
@@ -67,14 +67,14 @@ pub async fn do_login(
     }
 }
 
-pub async fn do_logout(session_state: SessionState<PostgreSqlBackend, User>) -> impl Responder {
+pub async fn do_logout(session_state: SessionState<PostgreSqlBackend>) -> impl Responder {
     session_state.logout().await;
     HttpResponse::Found()
         .header(header::LOCATION, "/login")
         .finish()
 }
 
-pub async fn status_page(user_details: UserDetails<PostgreSqlBackend, User>) -> impl Responder {
+pub async fn status_page(user_details: UserDetails<PostgreSqlBackend>) -> impl Responder {
     StatusPage {
         user: Some(user_details.user),
         ..Default::default()
@@ -83,14 +83,14 @@ pub async fn status_page(user_details: UserDetails<PostgreSqlBackend, User>) -> 
 
 /// Used to access mocked user-specific information
 pub async fn retrieve_user_information(
-    user_details: UserDetails<PostgreSqlBackend, User>,
+    user_details: UserDetails<PostgreSqlBackend>,
 ) -> Result<String> {
     Ok(format!("User information: {:?}", user_details.user))
 }
 
 /// Used to access mocked admin-specific information
 pub async fn retrieve_admin_information(
-    user_details: UserDetails<PostgreSqlBackend, User>,
+    user_details: UserDetails<PostgreSqlBackend>,
 ) -> Result<String> {
     Ok(format!("Admin information: {:?}", user_details.user))
 }

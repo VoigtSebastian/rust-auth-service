@@ -15,7 +15,7 @@ To use the example implementation of this service, you should have a working doc
 
 To run the database execute the command `./automation.sh container start` after the container is running, execute `./automation.sh db up` to create the database-schema for this database.
 
-Before running the service you have to create a certificate by running `./automation.sh gencert`.
+Before running the service, you have to create a certificate by running `./automation.sh gencert`.
 This command will run `openssl` and create the files `cert.pem`and `key.pem`.
 
 After starting the database and creating its schema, you can execute `cargo build --workspace` and `cargo run` to run the service with its default values.
@@ -27,6 +27,8 @@ Your browser will probably (_hopefully_) tell you, that this is an unsafe connec
 In every other circumstance, you should consider what decision let you to this point in your life and return to safety.
 This time, you can tell your browser that you know what you are doing (if you do so) and enter the website.
 In general, the [security section](#security) should be considered when working with this project.
+
+By running `cargo bench --workspace` you can execute the benchmarks that are used to check for timing attacks.
 
 ### For the lazy ones
 
@@ -52,15 +54,136 @@ Additionally:
 2. The service is **not meant for production**
 3. SQLx — our SQL library — does not support 1:n mapping. This might be a security issue in our User implementation, as we need two queries to access a user and their capabilities.
 
+With the disclaimer out of the way, we tried to at least pay attention to
+security. What has been considered security wise:
+
+- Secure password storage with Argon2 as recommended per OWASP
+- Prevention of username enumeration by timing attacks (incomplete)
+- Generic error messages
+- Cookie handling and session protection
+- Enforced Authentication at compile time with typestates
+- Authorization based on capabilities
+- Strict Content Security Policy for XSS and Session Hijacking prevention
+- And obviously HTTPS
+
+However not everything is perfect. Currently, we don't issue CSRF tokens.
+2FA/MFA is missing and realistically a heap of stuff we didn't even think about.
+
 ## Project structure
 
-This projects uses cargo workspace to organize the project into multiple crates, currently there are 5 crates.
+This projects uses cargo workspace to organize the project into multiple crates, currently there are 4 crates.
+In addition to the 4 rust crates, the `sql` subdirectory contains the `up.sql`and `down.sql` scripts used to initialize the database.
 
-1. **src/** the executable crate that builds the example web server
-2. **middlware** contains the actix-web handle session authorization/authentication
-3. **access-control** control contains the code, that is used to control a users access by the backend
-4. **database-integration** contains all the database specific code, that is used in the example application5
-5. **service-errors** contains all errors that are used by the application — like library errors
+### Workspace
+
+- **src/** the executable crate that builds the example web server
+- **database-integration** contains all the database specific code, that is used in the example application5
+- **middlware** contains the actix-web handle session authorization/authentication
+- **access-control** control contains the code, that is used to control a users access by the backend
+
+The auth library consists of two crates, `access-control`and `middleware`.
+The `access-control` crate contains two traits `User` and `Backend` and additionally the struct `AccessControl`.
+The `middleware` crate contains the actix-web middleware that uses those traits to check a request's validity.
+
+The `main` crate in the projects root and the crate `database-integration` implement the traits provided by `access-control` and use them to build an executable application.
+The `database-integration` crate contains the `User` and `PostgreSqlBackend` implementation which provide access to the PostgreSQL database to the `RustAuthMiddleware` and `AccessControl`.
+
+## Data Flow
+
+The basic flow of data starts with an HTTP request.
+If the requests is to an existing route, that is using the `RustAuthMiddleware`, the request will be handled in one of two following ways.
+
+### The user is not logged in / registered
+
+If the route does not trigger the login/registration process, it will respond with a redirect to the login page.
+This gets indirectly triggered by the `RustAuthMiddleware`, as it returns an error with the status-code UNAUTHORIZED, which will then be caught by an ErrorHandler.
+This way, a user that is trying to get access to the website, but is not logged in, will always end up at the login page.
+
+```rust
+// middleware/src/lib.rs ; line 193
+// Tries to retrieve a user from the database an returns an ErrorUnauthorized if this fails.
+// The same behavior is used in multiple parts of the middleware.
+let user = AccessControl::new(item.backend.clone())
+            .authenticate_creds(username, password)
+            .await
+            .map_err(ErrorUnauthorized)?
+
+// src/main.rs ; line 64
+// Register an error handler that redirects to the login page
+App::new()
+    .wrap(
+        ErrorHandlers::new()
+            .handler(http::StatusCode::UNAUTHORIZED, routes::login_redirect),
+    )
+
+// src/routes.rs ; line 22
+// The actual redirect response
+pub fn login_redirect(res: dev::ServiceResponse) -> Result<ErrorHandlerResponse<dev::Body>> {
+    Ok(ErrorHandlerResponse::Response(ServiceResponse::new(
+        res.request().clone(),
+        HttpResponse::Found()
+            .header(header::LOCATION, "/login")
+            .finish(),
+    )))
+}
+```
+
+If the requests is to a route that does provide login and register functionality, this route may use SessionState extractor to get access to the login and register methods.
+This way, a route-handler can register an action using actix-web extensions for this request.
+This login or register action can then be handled by the middleware after it has executed the route handler.
+
+```rust
+// src/routes.rs ; Line 53
+// Retrieve the SessionState by using the build in extractor
+pub async fn do_login(
+    form: Form<Credentials>,
+    session_state: SessionState<PostgreSqlBackend>,
+) -> impl Responder {
+    // Call the login method with the provided username and password
+    match session_state.login(&form.username, &form.password).await {
+        Ok(_) => // Handle a success
+        Err(_) => // Handle an error
+    }
+}
+
+// middleware/src/lib.rs ; Line 204
+// The implementation of login called by the route handler adds the Login action to the actix-web request extensions
+pub async fn login(
+    &self,
+    username: impl AsRef<str>,
+    password: impl AsRef<str>,
+) -> Result<B::User, Error> {
+    // ...
+    // Add the Login action the the requests extensions
+    item.actions.push(SessionStateAction::Login(session_id));
+    Ok(user)
+}
+
+// middleware/src/lib.rs ; Line 124
+// After executing the route handler, the middleware extracts the requested actions and executes them.
+let item = res
+    .request()
+    .extensions_mut()
+    .remove::<SessionStateItem<T>>()
+    .unwrap();
+for action in item.actions {
+    // ...
+}
+```
+
+### The user is logged in
+
+Authorize the user by checking their capabilities and check if they are a superset of the required capabilities.
+Using the implementation of `FromRequest` for `UserDetails` a route can extract a user and gain access to their data.
+
+```rust
+// Gain access a user by calling the UserDetails extractor
+pub async fn retrieve_user_information(
+    user_details: UserDetails<PostgreSqlBackend>,
+) -> Result<String> {
+    Ok(format!("User information: {:?}", user_details.user))
+}
+```
 
 ## Build the documentation
 

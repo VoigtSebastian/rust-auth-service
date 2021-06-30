@@ -67,14 +67,14 @@ pub enum Error {
 /// This function retrieves a user from the database by providing a username and password.
 /// # Implementations
 /// Currently there is the PostgreSqlBackend which implements an example workflow for the backend.
-pub trait Backend<U>: Clone
-where
-    U: User,
-{
+pub trait Backend {
+    /// The user type that implements the [`User`] trait.
+    type User: User;
+
     /// Defines a method that should retrieve a user by name from the database.
-    fn get_user(&self, username: impl AsRef<str>) -> FutureOption<U>;
+    fn get_user(&self, username: impl AsRef<str>) -> FutureOption<Self::User>;
     /// Defines a method that should retrieve a user by session id from the database.
-    fn get_user_from_session(&self, session_id: impl AsRef<str>) -> FutureOption<U>;
+    fn get_user_from_session(&self, session_id: impl AsRef<str>) -> FutureOption<Self::User>;
     /// Defines a method that should register a user by writing a username and password hash into the database.
     fn register_user(
         &self,
@@ -82,7 +82,7 @@ where
         password_hash: impl AsRef<str>,
     ) -> FutureResult<()>;
     /// Defines a method that should store a new session for a provided user and session id into the database.
-    fn store_session(&self, user: &U, session_id: impl AsRef<str>) -> FutureResult<()>;
+    fn store_session(&self, user: &Self::User, session_id: impl AsRef<str>) -> FutureResult<()>;
     /// Defines a method that should remove an existing session by a provided session id.
     fn remove_session(&self, session_id: impl AsRef<str>) -> FutureResult<()>;
 }
@@ -126,21 +126,19 @@ fn get_argon2_ctx() -> Argon2<'static> {
 /// # Definition
 /// To use the AccessControl an implementation of a Backend and therefore User is necessary.
 #[derive(Debug, Clone)]
-pub struct AccessControl<S, B, U>
+pub struct AccessControl<S, B>
 where
     S: AccessControlState,
-    B: Backend<U>,
-    U: User,
+    B: Backend,
 {
     state: S,
     backend: B,
-    user: Option<U>,
+    user: Option<B::User>,
 }
 
-impl<B, U> AccessControl<Start, B, U>
+impl<B> AccessControl<Start, B>
 where
-    B: Backend<U>,
-    U: User,
+    B: Backend,
 {
     /// Create a new AccessControl in the state `Start` by providing a `Backend<impl User>`
     pub fn new(backend: B) -> Self {
@@ -152,10 +150,9 @@ where
     }
 }
 
-impl<B, U> AccessControl<Start, B, U>
+impl<B> AccessControl<Start, B>
 where
-    B: Backend<U>,
-    U: User,
+    B: Backend,
 {
     /// Authenticate a user by providing a username and password. This function must be constant time.
     ///
@@ -168,7 +165,7 @@ where
         self,
         username: impl AsRef<str>,
         password: impl AsRef<str>,
-    ) -> Result<AccessControl<Authenticated, B, U>, Error> {
+    ) -> Result<AccessControl<Authenticated, B>, Error> {
         let user = self.backend.get_user(username).await;
 
         // We can't do an early return if the user does not exist in the database so
@@ -196,7 +193,7 @@ where
     pub async fn authenticate_session(
         self,
         session_id: impl AsRef<str>,
-    ) -> Result<AccessControl<Authenticated, B, U>, Error> {
+    ) -> Result<AccessControl<Authenticated, B>, Error> {
         let user = self
             .backend
             .get_user_from_session(session_id)
@@ -247,10 +244,9 @@ where
     }
 }
 
-impl<B, U> AccessControl<Authenticated, B, U>
+impl<B> AccessControl<Authenticated, B>
 where
-    B: Backend<U>,
-    U: User,
+    B: Backend,
 {
     /// Authorize a user by passing in a `&HashSet<String>` of capabilities and comparing it to the users capabilities.
     ///
@@ -259,7 +255,7 @@ where
     pub fn authorize(
         self,
         required_capabilities: &HashSet<String>,
-    ) -> Result<AccessControl<Authorized, B, U>, Error> {
+    ) -> Result<AccessControl<Authorized, B>, Error> {
         if !self
             .user
             .as_ref()
@@ -278,15 +274,14 @@ where
     }
 }
 
-impl<B, U> AccessControl<Authorized, B, U>
+impl<B> AccessControl<Authorized, B>
 where
-    B: Backend<U>,
-    U: User,
+    B: Backend,
 {
     /// After the user is authenticated and authorized, this method can be used to retrieve the user.
     ///
     /// The call to this function will always succeed as the [typestate pattern](http://cliffle.com/blog/rust-typestate/) makes sure the user is valid, authenticated and authorized.
-    pub fn get_user(self) -> U {
+    pub fn get_user(self) -> B::User {
         self.user
             .expect("user is always available in authorized state")
     }

@@ -1,14 +1,18 @@
-use std::{collections::HashSet, fmt};
+//! Provides actix-web server configurations for different parts of the actix-web example application.
+//!
+//! - [website] provides routes that are specific to the website
+//! - [user_config] provides a user specific configuration
+//! - [admin_config] provides a admin specific configuration
 
 use crate::routes;
-use database_integration::PostgreSqlBackend;
-use middleware::RustAuthMiddleware;
-
 use actix_web::{
     web,
     web::{get, resource},
 };
+use database_integration::PostgreSqlBackend;
+use middleware::RustAuthMiddleware;
 use sqlx::{Pool, Postgres};
+use std::{collections::HashSet, fmt};
 
 #[derive(Debug)]
 pub enum Capabilities {
