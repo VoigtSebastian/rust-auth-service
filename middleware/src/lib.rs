@@ -180,13 +180,6 @@ where
 }
 
 /// Used to provide access to the users session by using the actix-web extractor.
-///
-/// ```
-/// pub async fn do_logout(session_state: SessionState<PostgreSqlBackend>) -> impl Responder {
-///     session_state.logout().await;
-///     Ok(())
-/// }
-/// ```
 #[derive(Debug, Clone)]
 pub struct SessionState<B>
 where
@@ -284,14 +277,6 @@ where
 }
 
 /// Provides a [Backend::User] to a request by extracting it from actix-webs extensions.
-///
-/// ```
-/// pub async fn retrieve_user_information(
-///     user_details: UserDetails<PostgreSqlBackend>,
-/// ) -> Result<String> {
-///     Ok(format!("User information: {:?}", user_details.user))
-/// }
-/// ```
 pub struct UserDetails<B>
 where
     B: Backend,
