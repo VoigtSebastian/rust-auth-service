@@ -1,14 +1,8 @@
-//! Contains the middleware implementation that uses generics to provide the desired behavior.
-
-use std::cell::RefCell;
-use std::collections::HashSet;
-use std::marker::PhantomData;
-use std::pin::Pin;
-use std::rc::Rc;
-use std::task::{Context, Poll};
+//! Contains the middleware that uses a [Backend] implementation to secure routes.
+//!
+//! The [RustAuthMiddleware] struct provides a [`RustAuthMiddleware::new`] function that initializes the middleware.
 
 use access_control::{AccessControl, Backend};
-
 use actix_service::{Service, Transform};
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::dev::{Payload, PayloadStream, ServiceRequest, ServiceResponse};
@@ -19,11 +13,20 @@ use actix_web::{Error, FromRequest, HttpMessage, HttpRequest};
 use futures_core::Future;
 use futures_util::future::{ok, Ready};
 use rand::RngCore;
+use std::cell::RefCell;
+use std::collections::HashSet;
+use std::marker::PhantomData;
+use std::pin::Pin;
+use std::rc::Rc;
+use std::task::{Context, Poll};
 use time::{Duration, OffsetDateTime};
 
 /// A simple type to describe a dynamic Future to make clippy happy.
 type DynamicFutureReturn<R> = Pin<Box<dyn Future<Output = R>>>;
 
+/// The middleware that provides authentication and authorization to routes.
+///
+/// Initialized by calling [`RustAuthMiddleware::new`].
 pub struct RustAuthMiddleware<T>
 where
     T: Backend,
@@ -36,6 +39,10 @@ impl<T> RustAuthMiddleware<T>
 where
     T: Backend,
 {
+    /// Create a new instance of the [RustAuthMiddleware] by providing a [Backend] implementation and a list of required capabilities.
+    ///
+    /// The [Backend] is used to extract and set User and Sessions by providing a generic trait.
+    /// The [HashSet] described what capabilities a user needs to have, go access this route.
     pub fn new(backend: T, required_capabilities: HashSet<String>) -> Self {
         Self {
             backend,
@@ -108,9 +115,12 @@ where
             };
             req.extensions_mut().insert(item);
 
+            // Execute the actual route handler
             let fut = srv.call(req);
             let mut res = fut.await?;
 
+            // If a user wants to login or logout, a route will call SessionState::login or SessionState::logout respectively.
+            // These methods add a SessionStateAction the the requests extensions which is then extracted and handled below.
             let item = res
                 .request()
                 .extensions_mut()
@@ -148,12 +158,17 @@ where
     }
 }
 
+/// Enum with all of the possible actions that a route can add by calling SessionState::login or SessionState::logout.
 #[derive(Debug, Clone)]
 enum SessionStateAction {
     Login(String),
     Logout,
 }
 
+/// Provides an action to the middleware.
+///
+/// Adding a [SessionStateItem] to the actix-web extensions provides the possibility to do some action after the request was handled by the route.
+/// [SessionState::login] and [SessionState::logout]
 #[derive(Debug)]
 struct SessionStateItem<B>
 where
@@ -164,6 +179,14 @@ where
     required_caps: HashSet<String>,
 }
 
+/// Used to provide access to the users session by using the actix-web extractor.
+///
+/// ```
+/// pub async fn do_logout(session_state: SessionState<PostgreSqlBackend>) -> impl Responder {
+///     session_state.logout().await;
+///     Ok(())
+/// }
+/// ```
 #[derive(Debug, Clone)]
 pub struct SessionState<B>
 where
@@ -177,6 +200,7 @@ impl<B> SessionState<B>
 where
     B: Backend + Clone + 'static,
 {
+    /// Tries to login a user by providing username and password.
     pub async fn login(
         &self,
         username: impl AsRef<str>,
@@ -215,14 +239,16 @@ where
         Ok(user)
     }
 
+    /// Tries to logout a user
     pub async fn logout(&self) {
         if let Some(item) = self.req.extensions_mut().get_mut::<SessionStateItem<B>>() {
             item.actions.push(SessionStateAction::Logout);
         }
     }
 
-    /// TODO: Think about what is required to register a user. Maybe other appliances want to store additional user
-    /// details like first or last name ...
+    // TODO: Think about what is required to register a user. Maybe other appliances want to store additional user
+    // details like first or last name ...
+    /// Tries to register a new user.
     pub async fn register(
         &self,
         username: impl AsRef<str>,
@@ -257,6 +283,15 @@ where
     }
 }
 
+/// Provides a [Backend::User] to a request by extracting it from actix-webs extensions.
+///
+/// ```
+/// pub async fn retrieve_user_information(
+///     user_details: UserDetails<PostgreSqlBackend>,
+/// ) -> Result<String> {
+///     Ok(format!("User information: {:?}", user_details.user))
+/// }
+/// ```
 pub struct UserDetails<B>
 where
     B: Backend,
