@@ -28,6 +28,8 @@ In every other circumstance, you should consider what decision let you to this p
 This time, you can tell your browser that you know what you are doing (if you do so) and enter the website.
 In general, the [security section](#security) should be considered when working with this project.
 
+By running `cargo bench --workspace` you can execute the benchmarks that are used to check for timing attacks.
+
 ### For the lazy ones
 
 1. `./automation.sh container start`
@@ -93,9 +95,7 @@ If the requests is to an existing route, that is using the `RustAuthMiddleware`,
 
 ### The user is not logged in / registered
 
-TODO: description of login process
-
-Respond with a redirect to the login page.
+If the route does not trigger the login/registration process, it will respond with a redirect to the login page.
 This gets indirectly triggered by the `RustAuthMiddleware`, as it returns an error with the status-code UNAUTHORIZED, which will then be caught by an ErrorHandler.
 This way, a user that is trying to get access to the website, but is not logged in, will always end up at the login page.
 
@@ -128,10 +128,62 @@ pub fn login_redirect(res: dev::ServiceResponse) -> Result<ErrorHandlerResponse<
 }
 ```
 
+If the requests is to a route that does provide login and register functionality, this route may use SessionState extractor to get access to the login and register methods.
+This way, a route-handler can register an action using actix-web extensions for this request.
+This login or register action can then be handled by the middleware after it has executed the route handler.
+
+```rust
+// src/routes.rs ; Line 53
+// Retrieve the SessionState by using the build in extractor
+pub async fn do_login(
+    form: Form<Credentials>,
+    session_state: SessionState<PostgreSqlBackend>,
+) -> impl Responder {
+    // Call the login method with the provided username and password
+    match session_state.login(&form.username, &form.password).await {
+        Ok(_) => // Handle a success
+        Err(_) => // Handle an error
+    }
+}
+
+// middleware/src/lib.rs ; Line 204
+// The implementation of login called by the route handler adds the Login action to the actix-web request extensions
+pub async fn login(
+    &self,
+    username: impl AsRef<str>,
+    password: impl AsRef<str>,
+) -> Result<B::User, Error> {
+    // ...
+    // Add the Login action the the requests extensions
+    item.actions.push(SessionStateAction::Login(session_id));
+    Ok(user)
+}
+
+// middleware/src/lib.rs ; Line 124
+// After executing the route handler, the middleware extracts the requested actions and executes them.
+let item = res
+    .request()
+    .extensions_mut()
+    .remove::<SessionStateItem<T>>()
+    .unwrap();
+for action in item.actions {
+    // ...
+}
+```
+
 ### The user is logged in
 
 Authorize the user by checking their capabilities and check if they are a superset of the required capabilities.
-TODO: description of user extraction
+Using the implementation of `FromRequest` for `UserDetails` a route can extract a user and gain access to their data.
+
+```rust
+// Gain access a user by calling the UserDetails extractor
+pub async fn retrieve_user_information(
+    user_details: UserDetails<PostgreSqlBackend>,
+) -> Result<String> {
+    Ok(format!("User information: {:?}", user_details.user))
+}
+```
 
 ## Build the documentation
 
